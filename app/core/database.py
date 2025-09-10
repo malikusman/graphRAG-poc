@@ -27,7 +27,7 @@ async def connect_to_mongo():
     
     try:
         _client = AsyncIOMotorClient(settings.MONGODB_URL)
-        _database = _client[settings.MONGODB_DATABASE]
+        _database = _client[settings.MONGODB_DB_NAME]
         
         # Test the connection
         await _client.admin.command('ping')
@@ -49,4 +49,4 @@ async def close_mongo_connection():
 def get_sync_database():
     """Get synchronous database instance for Celery tasks"""
     client = MongoClient(settings.MONGODB_URL)
-    return client[settings.MONGODB_DATABASE]
+    return client[settings.MONGODB_DB_NAME]

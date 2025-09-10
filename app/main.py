@@ -5,6 +5,8 @@ Main FastAPI application entry point
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.database import connect_to_mongo, close_mongo_connection
+from app.database.models import initialize_database
 
 # Create FastAPI application
 app = FastAPI(
@@ -40,6 +42,19 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "message": "SageWrite GraphRAG API is running"}
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    await connect_to_mongo()
+    await initialize_database()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database connection on shutdown"""
+    await close_mongo_connection()
 
 
 if __name__ == "__main__":

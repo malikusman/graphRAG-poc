@@ -21,7 +21,7 @@ class Settings(BaseSettings):
         default="mongodb://admin:password123@localhost:27017/sagewrite?authSource=admin",
         env="MONGODB_URL"
     )
-    MONGODB_DATABASE: str = Field(default="sagewrite", env="MONGODB_DATABASE")
+    MONGODB_DB_NAME: str = Field(default="sagewrite", env="MONGODB_DB_NAME")
     
     # Redis
     REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
