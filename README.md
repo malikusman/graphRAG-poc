@@ -101,6 +101,34 @@ sagewrite-app/
    npm start
    ```
 
+## Git Workflow
+
+This project follows a professional Git workflow with the following branch structure:
+
+- **`main`** - Production-ready code
+- **`develop`** - Integration branch for features
+- **`feature/*`** - Feature development branches
+- **`hotfix/*`** - Emergency fixes
+
+### Quick Start
+```bash
+# Clone the repository
+git clone git@github.com:malikusman/graphRAG-poc.git
+cd graphRAG-poc
+
+# Create feature branch
+git checkout develop
+git pull origin develop
+git checkout -b feature/your-feature-name
+
+# Make changes and commit
+git add .
+git commit -m "feat: your feature description"
+git push -u origin feature/your-feature-name
+```
+
+For detailed Git workflow instructions, see [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
+
 ## 📋 Development Status
 
 This is a Proof of Concept (POC) implementation.
