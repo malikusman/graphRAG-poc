@@ -5,52 +5,37 @@ Unit tests for models
 import pytest
 from datetime import datetime
 from app.models import (
-    DocumentCreate, DocumentResponse, DocumentStatus, DocumentType,
-    SectionCreate, SectionResponse, SectionType,
-    EntityCreate, EntityResponse, EntityType, EntityCategory,
-    RelationshipCreate, RelationshipResponse, RelationshipType, RelationshipDirection
+    Document, DocumentResponse, DocumentStatus,
+    Section, SectionResponse,
+    Entity, EntityResponse, EntityType, EntityCategory,
+    Relationship, RelationshipResponse, RelationshipType
 )
 
 
 class TestDocumentModels:
     """Test document models"""
     
-    def test_document_create_valid(self):
+    def test_document_valid(self):
         """Test valid document creation"""
-        doc = DocumentCreate(
+        doc = Document(
             title="Test Document",
             doi="10.1000/test",
             year=2023,
-            abstract="This is a test abstract",
-            authors=["John Doe", "Jane Smith"],
-            journal="Test Journal",
-            keywords=["test", "document"],
-            language="en",
-            file_path="/path/to/file.pdf",
-            file_size=1024,
-            file_type=DocumentType.PDF
+            status=DocumentStatus.PROCESSED
         )
         
         assert doc.title == "Test Document"
         assert doc.doi == "10.1000/test"
         assert doc.year == 2023
-        assert len(doc.authors) == 2
-        assert doc.file_type == DocumentType.PDF
+        assert doc.status == DocumentStatus.PROCESSED
     
-    def test_document_create_invalid_doi(self):
+    def test_document_invalid_doi(self):
         """Test invalid DOI format"""
         with pytest.raises(ValueError, match="DOI must start with"):
-            DocumentCreate(
+            Document(
                 title="Test Document",
-                doi="invalid-doi"
-            )
-    
-    def test_document_create_invalid_file_size(self):
-        """Test invalid file size"""
-        with pytest.raises(ValueError, match="File size too large"):
-            DocumentCreate(
-                title="Test Document",
-                file_size=100 * 1024 * 1024  # 100MB
+                doi="invalid-doi",
+                status=DocumentStatus.PROCESSED
             )
     
     def test_document_response(self):
@@ -72,30 +57,27 @@ class TestDocumentModels:
 class TestSectionModels:
     """Test section models"""
     
-    def test_section_create_valid(self):
+    def test_section_valid(self):
         """Test valid section creation"""
-        section = SectionCreate(
+        section = Section(
             document_id="doc-123",
-            section_type=SectionType.ABSTRACT,
-            title="Abstract",
-            content="This is the abstract content",
-            order=1,
-            page_number=1
+            title="abstract",
+            text="This is the abstract content",
+            year=2023
         )
         
         assert section.document_id == "doc-123"
-        assert section.section_type == SectionType.ABSTRACT
-        assert section.content == "This is the abstract content"
-        assert section.word_count == 5  # Auto-calculated
-        assert section.char_count == 28  # Auto-calculated
+        assert section.title == "abstract"
+        assert section.text == "This is the abstract content"
+        assert section.year == 2023
     
-    def test_section_create_empty_content(self):
-        """Test section with empty content"""
-        with pytest.raises(ValueError, match="Section content cannot be empty"):
-            SectionCreate(
+    def test_section_empty_text(self):
+        """Test section with empty text"""
+        with pytest.raises(ValueError, match="Section text cannot be empty"):
+            Section(
                 document_id="doc-123",
-                section_type=SectionType.ABSTRACT,
-                content="   "  # Empty after strip
+                title="abstract",
+                text="   "  # Empty after strip
             )
     
     def test_section_response(self):
@@ -104,55 +86,56 @@ class TestSectionModels:
         section = SectionResponse(
             _id="section-123",
             document_id="doc-123",
-            section_type=SectionType.METHODS,
-            content="Methods content",
-            order=2,
+            title="methods",
+            text="Methods content",
             created_at=now,
             updated_at=now
         )
         
         assert section.id == "section-123"
-        assert section.section_type == SectionType.METHODS
+        assert section.title == "methods"
 
 
 class TestEntityModels:
     """Test entity models"""
     
-    def test_entity_create_valid(self):
+    def test_entity_valid(self):
         """Test valid entity creation"""
-        entity = EntityCreate(
-            name="CRISPR-Cas9",
+        entity = Entity(
+            entity_name="CRISPR-Cas9",
             entity_type=EntityType.METHOD,
-            category=EntityCategory.METHODS_AND_APPROACHES,
-            description="Gene editing technique",
+            entity_category=EntityCategory.METHODS_AND_APPROACHES,
+            entity_description="Gene editing technique",
             aliases=["CRISPR", "Cas9"],
-            frequency=5,
-            confidence=0.95
+            paper_ids=["doc-123"],
+            section_ids=["sec-45"],
+            frequency=5
         )
         
-        assert entity.name == "CRISPR-Cas9"
+        assert entity.entity_name == "CRISPR-Cas9"
         assert entity.entity_type == EntityType.METHOD
-        assert entity.category == EntityCategory.METHODS_AND_APPROACHES
+        assert entity.entity_category == EntityCategory.METHODS_AND_APPROACHES
         assert len(entity.aliases) == 2
-        assert entity.confidence == 0.95
+        assert len(entity.paper_ids) == 1
+        assert len(entity.section_ids) == 1
     
-    def test_entity_create_empty_name(self):
+    def test_entity_empty_name(self):
         """Test entity with empty name"""
         with pytest.raises(ValueError, match="Entity name cannot be empty"):
-            EntityCreate(
-                name="   ",
+            Entity(
+                entity_name="   ",
                 entity_type=EntityType.METHOD,
-                category=EntityCategory.METHODS_AND_APPROACHES
+                entity_category=EntityCategory.METHODS_AND_APPROACHES
             )
     
-    def test_entity_create_too_many_aliases(self):
+    def test_entity_too_many_aliases(self):
         """Test entity with too many aliases"""
         aliases = [f"alias_{i}" for i in range(25)]
         with pytest.raises(ValueError, match="Too many aliases"):
-            EntityCreate(
-                name="Test Entity",
+            Entity(
+                entity_name="Test Entity",
                 entity_type=EntityType.METHOD,
-                category=EntityCategory.METHODS_AND_APPROACHES,
+                entity_category=EntityCategory.METHODS_AND_APPROACHES,
                 aliases=aliases
             )
     
@@ -161,9 +144,9 @@ class TestEntityModels:
         now = datetime.utcnow()
         entity = EntityResponse(
             _id="entity-123",
-            name="Test Entity",
+            entity_name="Test Entity",
             entity_type=EntityType.DATASET,
-            category=EntityCategory.DATA_AND_MATERIALS,
+            entity_category=EntityCategory.DATA_AND_MATERIALS,
             created_at=now,
             updated_at=now
         )
@@ -175,41 +158,43 @@ class TestEntityModels:
 class TestRelationshipModels:
     """Test relationship models"""
     
-    def test_relationship_create_valid(self):
+    def test_relationship_valid(self):
         """Test valid relationship creation"""
-        rel = RelationshipCreate(
-            source_entity_id="entity-1",
-            target_entity_id="entity-2",
+        rel = Relationship(
+            source_entity="CRISPR-Cas9",
+            target_entity="Gene editing",
             relationship_type=RelationshipType.USES,
-            direction=RelationshipDirection.DIRECTED,
-            strength=0.8,
-            confidence=0.9,
-            description="Entity 1 uses Entity 2"
+            relationship_strength=0.8,
+            description="CRISPR-Cas9 uses gene editing",
+            section_ids=["sec-78"],
+            paper_ids=["doc-456"]
         )
         
-        assert rel.source_entity_id == "entity-1"
-        assert rel.target_entity_id == "entity-2"
+        assert rel.source_entity == "CRISPR-Cas9"
+        assert rel.target_entity == "Gene editing"
         assert rel.relationship_type == RelationshipType.USES
-        assert rel.strength == 0.8
-        assert rel.confidence == 0.9
+        assert rel.relationship_strength == 0.8
+        assert len(rel.section_ids) == 1
+        assert len(rel.paper_ids) == 1
     
-    def test_relationship_create_same_entities(self):
+    def test_relationship_same_entities(self):
         """Test relationship with same source and target entities"""
         with pytest.raises(ValueError, match="Source and target entities must be different"):
-            RelationshipCreate(
-                source_entity_id="entity-1",
-                target_entity_id="entity-1",  # Same as source
-                relationship_type=RelationshipType.USES
+            Relationship(
+                source_entity="Entity-1",
+                target_entity="Entity-1",  # Same as source
+                relationship_type=RelationshipType.USES,
+                relationship_strength=0.5
             )
     
-    def test_relationship_create_invalid_strength(self):
+    def test_relationship_invalid_strength(self):
         """Test relationship with invalid strength"""
         with pytest.raises(ValueError):
-            RelationshipCreate(
-                source_entity_id="entity-1",
-                target_entity_id="entity-2",
+            Relationship(
+                source_entity="Entity-1",
+                target_entity="Entity-2",
                 relationship_type=RelationshipType.USES,
-                strength=1.5  # Invalid: > 1.0
+                relationship_strength=1.5  # Invalid: > 1.0
             )
     
     def test_relationship_response(self):
@@ -217,15 +202,16 @@ class TestRelationshipModels:
         now = datetime.utcnow()
         rel = RelationshipResponse(
             _id="rel-123",
-            source_entity_id="entity-1",
-            target_entity_id="entity-2",
-            relationship_type=RelationshipType.IMPROVES,
+            source_entity="Entity-1",
+            target_entity="Entity-2",
+            relationship_type=RelationshipType.ASSOCIATED_WITH,
+            relationship_strength=0.7,
             created_at=now,
             updated_at=now
         )
         
         assert rel.id == "rel-123"
-        assert rel.relationship_type == RelationshipType.IMPROVES
+        assert rel.relationship_type == RelationshipType.ASSOCIATED_WITH
 
 
 if __name__ == "__main__":
