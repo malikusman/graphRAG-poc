@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.database.models import initialize_database
+from app.api import documents
 
 # Create FastAPI application
 app = FastAPI(
@@ -25,6 +26,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API routers
+app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 
 
 @app.get("/")

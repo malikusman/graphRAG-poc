@@ -55,15 +55,27 @@ class DocumentCollection:
         return str(result.inserted_id)
     
     @staticmethod
-    async def get_document(doc_id: str) -> Optional[DocumentResponse]:
+    async def get_document(doc_id: str) -> Optional[Document]:
         """Get document by ID"""
         collection = await DocumentCollection.get_collection()
         
         doc = await collection.find_one({"_id": ObjectId(doc_id)})
         if doc:
             doc["_id"] = str(doc["_id"])
-            return DocumentResponse(**doc)
+            return Document(**doc)
         return None
+    
+    @staticmethod
+    async def get_documents(skip: int = 0, limit: int = 100) -> List[Document]:
+        """Get documents with pagination"""
+        collection = await DocumentCollection.get_collection()
+        
+        documents = []
+        cursor = collection.find().skip(skip).limit(limit).sort("created_at", -1)
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            documents.append(Document(**doc))
+        return documents
     
     @staticmethod
     async def update_document_status(doc_id: str, status: DocumentStatus) -> bool:
@@ -75,6 +87,14 @@ class DocumentCollection:
             {"$set": {"status": status, "updated_at": datetime.utcnow()}}
         )
         return result.modified_count > 0
+    
+    @staticmethod
+    async def delete_document(doc_id: str) -> bool:
+        """Delete document by ID"""
+        collection = await DocumentCollection.get_collection()
+        
+        result = await collection.delete_one({"_id": ObjectId(doc_id)})
+        return result.deleted_count > 0
 
 
 class SectionCollection:
