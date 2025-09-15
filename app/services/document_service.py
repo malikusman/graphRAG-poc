@@ -10,13 +10,16 @@ import os
 
 from app.database.models import DocumentCollection
 from app.models import Document, DocumentStatus
+from app.tasks.processing_tasks import process_document
+# from app.services.file_parser import FileParser
+# from app.services.metadata_extractor import MetadataExtractor
 
 
 class DocumentService:
     """Service for document operations"""
     
     async def create_document(self, file: UploadFile) -> Document:
-        """Create a new document from uploaded file"""
+        """Create a new document from uploaded file and trigger background processing"""
         # Extract title from filename
         title = file.filename or "Untitled Document"
         if title.endswith(('.pdf', '.txt', '.docx')):
@@ -30,6 +33,12 @@ class DocumentService:
         
         # Insert document using our collection
         doc_id = await DocumentCollection.insert_document(document)
+        
+        # Trigger background processing
+        job = process_document.delay(doc_id)
+        
+        # Update document with job_id
+        await DocumentCollection.update_document_job_id(doc_id, job.id)
         
         # Retrieve and return the created document
         return await DocumentCollection.get_document(doc_id)

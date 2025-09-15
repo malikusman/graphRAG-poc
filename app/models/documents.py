@@ -22,6 +22,7 @@ class Document(BaseModel):
     doi: Optional[str] = Field(None, max_length=100, description="Digital Object Identifier")
     year: Optional[int] = Field(None, ge=1900, le=2030, description="Publication year")
     status: DocumentStatus = Field(..., description="Processing status")
+    job_id: Optional[str] = Field(None, description="Celery job ID for background processing")
     
     @field_validator('doi')
     @classmethod

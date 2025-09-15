@@ -33,7 +33,7 @@ class DocumentCollection:
         
         indexes = [
             IndexModel([("title", TEXT)]),  # Text search on title
-            IndexModel([("doi", ASCENDING)], unique=True, sparse=True),  # Unique DOI
+            IndexModel([("doi", ASCENDING)], sparse=True),  # DOI index (not unique)
             IndexModel([("year", DESCENDING)]),  # Sort by year
             IndexModel([("status", ASCENDING)]),  # Filter by status
             IndexModel([("created_at", DESCENDING)]),  # Sort by creation time
@@ -85,6 +85,17 @@ class DocumentCollection:
         result = await collection.update_one(
             {"_id": ObjectId(doc_id)},
             {"$set": {"status": status, "updated_at": datetime.utcnow()}}
+        )
+        return result.modified_count > 0
+    
+    @staticmethod
+    async def update_document_job_id(doc_id: str, job_id: str) -> bool:
+        """Update document job_id"""
+        collection = await DocumentCollection.get_collection()
+        
+        result = await collection.update_one(
+            {"_id": ObjectId(doc_id)},
+            {"$set": {"job_id": job_id, "updated_at": datetime.utcnow()}}
         )
         return result.modified_count > 0
     

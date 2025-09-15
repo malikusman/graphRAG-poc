@@ -3,14 +3,18 @@ Celery application configuration
 """
 
 from celery import Celery
-from core.config import settings
+from app.core.config import settings
+
+# Debug: Print the settings
+print(f"Celery Broker URL: {settings.CELERY_BROKER_URL}")
+print(f"Celery Result Backend: {settings.CELERY_RESULT_BACKEND}")
 
 # Create Celery instance
 celery_app = Celery(
     "sagewrite_graphrag",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["tasks.processing_tasks"]
+    include=["app.tasks.processing_tasks"]
 )
 
 # Celery configuration

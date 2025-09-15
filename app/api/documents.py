@@ -127,3 +127,47 @@ async def delete_document(document_id: str):
             detail=f"Failed to delete document: {str(e)}"
         )
 
+
+@router.get("/{document_id}/status")
+async def get_document_status(document_id: str):
+    """Get document processing status and job information"""
+    try:
+        doc_service = DocumentService()
+        document = await doc_service.get_document(document_id)
+
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found"
+            )
+
+        # If document has a job_id, get job status from Celery
+        job_status = None
+        if document.job_id:
+            from app.tasks.celery_app import celery_app
+            job = celery_app.AsyncResult(document.job_id)
+            job_status = {
+                "job_id": document.job_id,
+                "state": job.state,
+                "current": job.info.get("current", 0) if job.info else 0,
+                "total": job.info.get("total", 100) if job.info else 100,
+                "status": job.info.get("status", "Unknown") if job.info else "Unknown",
+                "result": job.result if job.state == "SUCCESS" else None,
+                "error": job.info.get("error") if job.state == "FAILURE" else None
+            }
+
+        return {
+            "document_id": document_id,
+            "status": document.status,
+            "title": document.title,
+            "job_status": job_status
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get document status: {str(e)}"
+        )
+

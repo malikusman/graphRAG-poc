@@ -46,6 +46,8 @@ services:
     environment:
       - MONGODB_URL=mongodb://mongodb:27017/sagewrite
       - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - ENVIRONMENT=development
     # volumes:
       # - ./app:/app
@@ -71,10 +73,12 @@ services:
       dockerfile: app/Dockerfile
     container_name: sagewrite-celery-worker
     restart: unless-stopped
-    command: poetry run celery -A tasks.celery_app worker --loglevel=info --concurrency=2
+    command: poetry run celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
     environment:
       - MONGODB_URL=mongodb://mongodb:27017/sagewrite
       - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - ENVIRONMENT=development
     # volumes:
       # - ./app:/app
