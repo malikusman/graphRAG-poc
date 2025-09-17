@@ -3,6 +3,7 @@ Celery tasks for document processing
 """
 
 import logging
+import asyncio
 from typing import Dict, Any
 from celery import current_task
 from bson import ObjectId
@@ -11,9 +12,7 @@ from app.tasks.celery_app import celery_app
 from app.core.database import get_sync_database
 from app.database.models import DocumentCollection, SectionCollection
 from app.models import DocumentStatus
-# from app.services.file_parser import FileParser
-# from app.services.metadata_extractor import MetadataExtractor
-# from app.services.section_extractor import SectionExtractor
+from app.services.embeddings import EmbeddingsService
 
 logger = logging.getLogger(__name__)
 
@@ -76,48 +75,61 @@ def process_document(self, document_id: str):
         # Step 3: Section extraction (60%)
         self.update_state(
             state="PROGRESS",
-            meta={"current": 60, "total": 100, "status": "Extracting sections..."}
+            meta={"current": 60, "total": 100, "status": "Processing sections..."}
         )
         
-        # Create sample sections (in real implementation, this would parse the actual content)
-        sample_sections = [
-            {
-                "document_id": document_id,
-                "title": "abstract",
-                "text": "This is a sample abstract for the document.",
-                "year": metadata.get("year"),
-                "order": 0,
-            },
-            {
-                "document_id": document_id,
-                "title": "methods",
-                "text": "This is a sample methods section for the document.",
-                "year": metadata.get("year"),
-                "order": 1,
-            },
-            {
-                "document_id": document_id,
-                "title": "results",
-                "text": "This is a sample results section for the document.",
-                "year": metadata.get("year"),
-                "order": 2,
-            }
-        ]
+        # Get sections from database (already extracted during upload)
+        sections_cursor = db.sections.find({"document_id": document_id})
+        sections = list(sections_cursor)
         
-        # Insert sections into database
-        for section in sample_sections:
-            db.sections.insert_one(section)
+        logger.info(f"Processing {len(sections)} sections for document {document_id}")
         
-        # Step 4: Entity extraction (80%)
+        # Step 4: Generate embeddings (70%)
         self.update_state(
             state="PROGRESS",
-            meta={"current": 80, "total": 100, "status": "Extracting entities..."}
+            meta={"current": 70, "total": 100, "status": "Generating embeddings..."}
         )
         
-        # TODO: Implement entity extraction using LLM
-        # This would be the Map phase of the GraphRAG pipeline
+        # Generate embeddings for sections
+        embeddings_service = EmbeddingsService()
+        for section in sections:
+            try:
+                embedding = asyncio.run(embeddings_service.generate_section_embedding(
+                    section["text"], 
+                    section.get("title", "")
+                ))
+                
+                if embedding:
+                    # Update section with embedding
+                    db.sections.update_one(
+                        {"_id": section["_id"]},
+                        {"$set": {"embedding": embedding}}
+                    )
+                    logger.debug(f"Generated embedding for section {section['_id']}")
+                else:
+                    logger.warning(f"Failed to generate embedding for section {section['_id']}")
+                    
+            except Exception as e:
+                logger.error(f"Error generating embedding for section {section['_id']}: {str(e)}")
         
-        # Step 5: Finalization (100%)
+        # Step 5: GraphRAG processing (80%)
+        self.update_state(
+            state="PROGRESS",
+            meta={"current": 80, "total": 100, "status": "Running GraphRAG pipeline..."}
+        )
+        
+        # Run GraphRAG pipeline for entity and relationship extraction
+        from app.pipelines.graphrag_pipeline import GraphRAGPipeline
+        
+        pipeline = GraphRAGPipeline()
+        graphrag_result = asyncio.run(pipeline.process_document(document_id, sections))
+        
+        if graphrag_result["success"]:
+            logger.info(f"GraphRAG processing complete: {graphrag_result['final_entities']} entities, {graphrag_result['final_relationships']} relationships")
+        else:
+            logger.error(f"GraphRAG processing failed: {graphrag_result.get('error', 'Unknown error')}")
+        
+        # Step 6: Finalization (100%)
         self.update_state(
             state="PROGRESS",
             meta={"current": 100, "total": 100, "status": "Finalizing..."}
@@ -135,8 +147,9 @@ def process_document(self, document_id: str):
             "status": "Document processed successfully!",
             "result": {
                 "document_id": document_id,
-                "sections_created": len(sample_sections),
-                "metadata": metadata
+                "sections_processed": len(sections),
+                "metadata": metadata,
+                "graphrag_result": graphrag_result if 'graphrag_result' in locals() else None
             }
         }
         
