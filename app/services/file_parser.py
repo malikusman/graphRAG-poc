@@ -29,21 +29,28 @@ class FileParser:
             Dict containing parsed content and metadata
         """
         try:
+            logger.info(f"Starting file parsing for: {file.filename}")
+            
             # Read file content
             content = await file.read()
+            logger.info(f"Read {len(content)} bytes from file")
             
             # Detect file type
             file_type = FileParser._detect_file_type(content, file.filename)
+            logger.info(f"Detected file type: {file_type}")
             
             # Parse based on file type
             if file_type == "pdf":
-                return await FileParser._parse_pdf(content)
+                result = await FileParser._parse_pdf(content)
             elif file_type == "docx":
-                return await FileParser._parse_docx(content)
+                result = await FileParser._parse_docx(content)
             elif file_type == "txt":
-                return await FileParser._parse_txt(content)
+                result = await FileParser._parse_txt(content)
             else:
                 raise ValueError(f"Unsupported file type: {file_type}")
+            
+            logger.info(f"File parsing successful. Content length: {len(result['content'])}")
+            return result
                 
         except Exception as e:
             logger.error(f"Error parsing file {file.filename}: {str(e)}")

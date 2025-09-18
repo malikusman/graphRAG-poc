@@ -3,11 +3,27 @@ SageWrite GraphRAG Application
 Main FastAPI application entry point
 """
 
+import logging
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.database.models import initialize_database
 from app.api import documents
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# Set specific logger levels
+logging.getLogger("app.services").setLevel(logging.INFO)
+logging.getLogger("app.tasks").setLevel(logging.INFO)
+logging.getLogger("app.pipelines").setLevel(logging.INFO)
 
 # Create FastAPI application
 app = FastAPI(

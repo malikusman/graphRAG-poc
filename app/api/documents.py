@@ -5,13 +5,13 @@ Document management API endpoints
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List
 
-from app.models import Document, DocumentStatus
+from app.models import Document, DocumentResponse, DocumentStatus
 from app.services.document_service import DocumentService
 
 router = APIRouter()
 
 
-@router.post("/upload", response_model=Document)
+@router.post("/upload", response_model=DocumentResponse)
 async def upload_document(file: UploadFile = File(...)):
     """Upload a new document for processing"""
     try:
@@ -146,13 +146,25 @@ async def get_document_status(document_id: str):
         if document.job_id:
             from app.tasks.celery_app import celery_app
             job = celery_app.AsyncResult(document.job_id)
+            
+            # Safely extract result, avoiding AsyncResult serialization issues
+            result_data = None
+            if job.state == "SUCCESS" and job.result:
+                try:
+                    # Convert result to JSON-serializable format
+                    import json
+                    result_data = json.loads(json.dumps(job.result, default=str))
+                except (TypeError, ValueError):
+                    # If serialization fails, convert to string representation
+                    result_data = str(job.result)
+            
             job_status = {
                 "job_id": document.job_id,
                 "state": job.state,
                 "current": job.info.get("current", 0) if job.info else 0,
                 "total": job.info.get("total", 100) if job.info else 100,
                 "status": job.info.get("status", "Unknown") if job.info else "Unknown",
-                "result": job.result if job.state == "SUCCESS" else None,
+                "result": result_data,
                 "error": job.info.get("error") if job.state == "FAILURE" else None
             }
 

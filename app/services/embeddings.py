@@ -32,7 +32,7 @@ class EmbeddingsService:
             self.max_tokens = 8191
             self.dimensions = 1536
     
-    async def generate_embedding(self, text: str) -> Optional[List[float]]:
+    def generate_embedding(self, text: str) -> Optional[List[float]]:
         """
         Generate embedding for a single text
         
@@ -47,7 +47,7 @@ class EmbeddingsService:
             if len(text) > self.max_tokens * 4:  # Rough character to token ratio
                 text = text[:self.max_tokens * 4]
             
-            response = await self.client.embeddings.acreate(
+            response = self.client.embeddings.create(
                 model=self.model,
                 input=text
             )
@@ -60,7 +60,7 @@ class EmbeddingsService:
             logger.error(f"Error generating embedding: {str(e)}")
             return None
     
-    async def generate_embeddings_batch(self, texts: List[str]) -> List[Optional[List[float]]]:
+    def generate_embeddings_batch(self, texts: List[str]) -> List[Optional[List[float]]]:
         """
         Generate embeddings for multiple texts
         
@@ -73,12 +73,12 @@ class EmbeddingsService:
         embeddings = []
         
         for text in texts:
-            embedding = await self.generate_embedding(text)
+            embedding = self.generate_embedding(text)
             embeddings.append(embedding)
         
         return embeddings
     
-    async def generate_section_embedding(self, section_text: str, section_title: str = "") -> Optional[List[float]]:
+    def generate_section_embedding(self, section_text: str, section_title: str = "") -> Optional[List[float]]:
         """
         Generate embedding for a section with title context
         
@@ -96,7 +96,7 @@ class EmbeddingsService:
             else:
                 combined_text = section_text
             
-            return await self.generate_embedding(combined_text)
+            return self.generate_embedding(combined_text)
             
         except Exception as e:
             logger.error(f"Error generating section embedding: {str(e)}")

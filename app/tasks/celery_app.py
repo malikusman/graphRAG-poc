@@ -29,6 +29,10 @@ celery_app.conf.update(
     task_soft_time_limit=25 * 60,  # 25 minutes
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
+    # FIX FOR AsyncResult SERIALIZATION ISSUE:
+    task_ignore_result=True,  # Don't store task results
+    result_expires=60,        # Expire results in 60 seconds
+    task_store_eager_result=False,  # Don't store eager results
 )
 
 # Optional configuration for development

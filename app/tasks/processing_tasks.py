@@ -17,8 +17,11 @@ from app.services.embeddings import EmbeddingsService
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True)
-def process_document(self, document_id: str):
+# @celery_app.task(bind=True)
+# def process_document(self, document_id: str):
+    # DEBUGGING: Test without binding - uncomment the line below and comment out the line above
+@celery_app.task
+def process_document(document_id: str):
     """
     Process a document through the GraphRAG pipeline
     
@@ -29,11 +32,8 @@ def process_document(self, document_id: str):
         Dict with processing results
     """
     try:
-        # Update task status
-        self.update_state(
-            state="PROGRESS",
-            meta={"current": 0, "total": 100, "status": "Starting document processing..."}
-        )
+        # DEBUGGING: Test without binding
+        logger.info("Starting document processing without task binding...")
 
         # Get database connection
         db = get_sync_database()
@@ -50,54 +50,46 @@ def process_document(self, document_id: str):
         )
 
         # Step 1: File parsing (20%)
-        self.update_state(
-            state="PROGRESS",
-            meta={"current": 20, "total": 100, "status": "Parsing document..."}
-        )
+        logger.info("Step 1: Parsing document...")
         
         # Note: In a real implementation, we'd need to retrieve the file content
         # For now, we'll simulate the parsing step
         logger.info(f"Processing document {document_id}")
         
         # Step 2: Metadata extraction (40%)
-        self.update_state(
-            state="PROGRESS",
-            meta={"current": 40, "total": 100, "status": "Extracting metadata..."}
-        )
+        logger.info("Step 2: Extracting metadata...")
         
         # Extract metadata (simulated for now)
         metadata = {
-            "title": document.get("title", "Untitled"),
-            "doi": document.get("doi"),
-            "year": document.get("year"),
+            "title": str(document.get("title", "Untitled")),
+            "doi": str(document.get("doi")) if document.get("doi") else None,
+            "year": int(document.get("year")) if document.get("year") else None,
         }
         
         # Step 3: Section extraction (60%)
-        self.update_state(
-            state="PROGRESS",
-            meta={"current": 60, "total": 100, "status": "Processing sections..."}
-        )
+        logger.info("Step 3: Processing sections...")
         
         # Get sections from database (already extracted during upload)
         sections_cursor = db.sections.find({"document_id": document_id})
-        sections = list(sections_cursor)
+        sections = []
+        for section in sections_cursor:
+            # Convert ObjectId to string for JSON serialization
+            section["_id"] = str(section["_id"])
+            sections.append(section)
         
         logger.info(f"Processing {len(sections)} sections for document {document_id}")
         
         # Step 4: Generate embeddings (70%)
-        self.update_state(
-            state="PROGRESS",
-            meta={"current": 70, "total": 100, "status": "Generating embeddings..."}
-        )
+        logger.info("Step 4: Generating embeddings...")
         
         # Generate embeddings for sections
         embeddings_service = EmbeddingsService()
         for section in sections:
             try:
-                embedding = asyncio.run(embeddings_service.generate_section_embedding(
+                embedding = embeddings_service.generate_section_embedding(
                     section["text"], 
                     section.get("title", "")
-                ))
+                )
                 
                 if embedding:
                     # Update section with embedding
@@ -113,10 +105,7 @@ def process_document(self, document_id: str):
                 logger.error(f"Error generating embedding for section {section['_id']}: {str(e)}")
         
         # Step 5: GraphRAG processing (80%)
-        self.update_state(
-            state="PROGRESS",
-            meta={"current": 80, "total": 100, "status": "Running GraphRAG pipeline..."}
-        )
+        logger.info("Step 5: Running GraphRAG pipeline...")
         
         # Run GraphRAG pipeline for entity and relationship extraction
         from app.pipelines.graphrag_pipeline import GraphRAGPipeline
@@ -129,11 +118,31 @@ def process_document(self, document_id: str):
         else:
             logger.error(f"GraphRAG processing failed: {graphrag_result.get('error', 'Unknown error')}")
         
-        # Step 6: Finalization (100%)
-        self.update_state(
-            state="PROGRESS",
-            meta={"current": 100, "total": 100, "status": "Finalizing..."}
-        )
+        # Step 6: Update global graph (90%)
+        logger.info("Step 6: Updating global graph...")
+        
+        # Initialize global_update_result
+        global_update_result = {"status": "skipped", "error": "Not implemented yet"}
+        
+        # Update global graph with new entities and relationships
+        # Note: For now, we'll skip the global graph update to avoid AsyncResult serialization issues
+        # from app.tasks.graph_tasks import update_global_graph
+        # global_update_task = update_global_graph.delay(document_id)
+        # 
+        # # Wait for global graph update to complete
+        # try:
+        #     global_update_result = global_update_task.get(timeout=300)  # 5 minute timeout
+        #     if global_update_result.get("current", 0) == 100:
+        #         logger.info("Global graph update completed successfully")
+        #     else:
+        #         logger.warning(f"Global graph update completed with issues: {global_update_result.get('status', 'Unknown')}")
+        # except Exception as e:
+        #     logger.error(f"Global graph update failed: {str(e)}")
+        #     global_update_result = {"error": str(e)}
+        #     # Continue processing even if global graph update fails
+        
+        # Step 7: Finalization (100%)
+        logger.info("Step 7: Finalizing...")
         
         # Update document status to processed
         db.documents.update_one(
@@ -146,14 +155,40 @@ def process_document(self, document_id: str):
             "total": 100,
             "status": "Document processed successfully!",
             "result": {
-                "document_id": document_id,
-                "sections_processed": len(sections),
-                "metadata": metadata,
-                "graphrag_result": graphrag_result if 'graphrag_result' in locals() else None
+                "document_id": str(document_id),
+                "sections_processed": int(len(sections)),
+                "metadata": {
+                    "title": str(metadata.get("title", "")),
+                    "doi": str(metadata.get("doi", "")) if metadata.get("doi") else None,
+                    "year": int(metadata.get("year", 0)) if metadata.get("year") else None,
+                },
+                "graphrag_result": {
+                    "success": bool(graphrag_result.get("success", False)),
+                    "entities_extracted": int(graphrag_result.get("entities_extracted", 0)),
+                    "relationships_extracted": int(graphrag_result.get("relationships_extracted", 0)),
+                } if 'graphrag_result' in locals() else None,
+                "global_graph_update": {
+                    "status": str(global_update_result.get("status", "unknown")),
+                } if 'global_update_result' in locals() else None
             }
         }
         
         logger.info(f"Successfully processed document {document_id}")
+        
+        # DEBUGGING: Log the exact return value before serialization
+        import json
+        try:
+            logger.info(f"About to return result: {json.dumps(result, default=str)}")
+            logger.info(f"Result type: {type(result)}")
+            logger.info(f"Result keys: {result.keys() if isinstance(result, dict) else 'Not a dict'}")
+        except Exception as e:
+            logger.error(f"Failed to serialize result for logging: {e}")
+            logger.info(f"Result type: {type(result)}")
+            if isinstance(result, dict):
+                logger.info(f"Result keys: {result.keys()}")
+                for key, value in result.items():
+                    logger.info(f"  {key}: {type(value)} = {value}")
+        
         return result
 
     except Exception as e:
@@ -169,10 +204,8 @@ def process_document(self, document_id: str):
         except Exception as update_error:
             logger.error(f"Failed to update document status: {str(update_error)}")
 
-        self.update_state(
-            state="FAILURE",
-            meta={"error": str(e), "document_id": document_id}
-        )
+        # No self.update_state available without binding
+        logger.error(f"Task failed: {str(e)}")
         raise
 
 

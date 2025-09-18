@@ -55,14 +55,14 @@ class DocumentCollection:
         return str(result.inserted_id)
     
     @staticmethod
-    async def get_document(doc_id: str) -> Optional[Document]:
+    async def get_document(doc_id: str) -> Optional[DocumentResponse]:
         """Get document by ID"""
         collection = await DocumentCollection.get_collection()
         
         doc = await collection.find_one({"_id": ObjectId(doc_id)})
         if doc:
             doc["_id"] = str(doc["_id"])
-            return Document(**doc)
+            return DocumentResponse(**doc)
         return None
     
     @staticmethod
@@ -251,6 +251,136 @@ class EntityCollection:
             }
         )
         return result.modified_count > 0
+    
+    @staticmethod
+    async def find_similar_entities_by_name(entity_name: str, threshold: float = 0.8) -> List[EntityResponse]:
+        """Find entities with similar names using text similarity"""
+        collection = await EntityCollection.get_collection()
+        
+        # Use MongoDB text search for similar entity names
+        # This is a simplified approach - in production, you might want to use embeddings
+        query = {
+            "$or": [
+                {"entity_name": {"$regex": entity_name, "$options": "i"}},
+                {"aliases": {"$regex": entity_name, "$options": "i"}}
+            ]
+        }
+        
+        cursor = collection.find(query)
+        entities = []
+        
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            entities.append(EntityResponse(**doc))
+        
+        return entities
+    
+    @staticmethod
+    async def find_entities_by_type_and_category(entity_type: str, category: str) -> List[EntityResponse]:
+        """Find entities by type and category"""
+        collection = await EntityCollection.get_collection()
+        
+        query = {
+            "entity_type": entity_type,
+            "entity_category": category
+        }
+        
+        cursor = collection.find(query)
+        entities = []
+        
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            entities.append(EntityResponse(**doc))
+        
+        return entities
+    
+    @staticmethod
+    async def merge_entities(source_id: str, target_id: str) -> bool:
+        """Merge two entities, keeping the target and updating references"""
+        collection = await EntityCollection.get_collection()
+        
+        try:
+            # Get source and target entities
+            source_entity = await collection.find_one({"_id": ObjectId(source_id)})
+            target_entity = await collection.find_one({"_id": ObjectId(target_id)})
+            
+            if not source_entity or not target_entity:
+                return False
+            
+            # Merge aliases
+            merged_aliases = list(set(
+                source_entity.get("aliases", []) + 
+                target_entity.get("aliases", []) +
+                [source_entity["entity_name"]]
+            ))
+            
+            # Merge paper_ids and section_ids
+            merged_paper_ids = list(set(
+                source_entity.get("paper_ids", []) + 
+                target_entity.get("paper_ids", [])
+            ))
+            merged_section_ids = list(set(
+                source_entity.get("section_ids", []) + 
+                target_entity.get("section_ids", [])
+            ))
+            
+            # Update target entity with merged data
+            await collection.update_one(
+                {"_id": ObjectId(target_id)},
+                {
+                    "$set": {
+                        "aliases": merged_aliases,
+                        "paper_ids": merged_paper_ids,
+                        "section_ids": merged_section_ids,
+                        "frequency": len(merged_paper_ids),
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            # Update all relationships that reference the source entity
+            from app.database.models import RelationshipCollection
+            rel_collection = await RelationshipCollection.get_collection()
+            
+            # Update relationships where source_entity is the source
+            await rel_collection.update_many(
+                {"source_entity": source_entity["entity_name"]},
+                {"$set": {"source_entity": target_entity["entity_name"]}}
+            )
+            
+            # Update relationships where source_entity is the target
+            await rel_collection.update_many(
+                {"target_entity": source_entity["entity_name"]},
+                {"$set": {"target_entity": target_entity["entity_name"]}}
+            )
+            
+            # Delete the source entity
+            await collection.delete_one({"_id": ObjectId(source_id)})
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error merging entities: {str(e)}")
+            return False
+    
+    @staticmethod
+    async def get_entity_frequency_stats(entity_name: str) -> Dict[str, Any]:
+        """Get frequency statistics for an entity across documents"""
+        collection = await EntityCollection.get_collection()
+        
+        entity = await collection.find_one({"entity_name": entity_name})
+        if not entity:
+            return {"entity_name": entity_name, "frequency": 0, "paper_count": 0, "section_count": 0}
+        
+        return {
+            "entity_name": entity_name,
+            "frequency": entity.get("frequency", 0),
+            "paper_count": len(entity.get("paper_ids", [])),
+            "section_count": len(entity.get("section_ids", [])),
+            "aliases": entity.get("aliases", []),
+            "entity_type": entity.get("entity_type"),
+            "entity_category": entity.get("entity_category")
+        }
 
 
 class RelationshipCollection:
@@ -322,6 +452,122 @@ class RelationshipCollection:
             doc["_id"] = str(doc["_id"])
             relationships.append(RelationshipResponse(**doc))
         return relationships
+    
+    @staticmethod
+    async def find_relationships_between_entities(source: str, target: str) -> List[RelationshipResponse]:
+        """Find all relationships between two entities"""
+        collection = await RelationshipCollection.get_collection()
+        
+        query = {
+            "$or": [
+                {"source_entity": source, "target_entity": target},
+                {"source_entity": target, "target_entity": source}
+            ]
+        }
+        
+        cursor = collection.find(query)
+        relationships = []
+        
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            relationships.append(RelationshipResponse(**doc))
+        
+        return relationships
+    
+    @staticmethod
+    async def find_conflicting_relationships(source: str, target: str) -> List[RelationshipResponse]:
+        """Find potentially conflicting relationships between entities"""
+        collection = await RelationshipCollection.get_collection()
+        
+        # Find relationships between the same entities with different types
+        # that might be contradictory (e.g., "increases" vs "decreases")
+        conflicting_types = [
+            ("increases", "decreases"),
+            ("activates", "inhibits"),
+            ("supports", "contradicts"),
+            ("causes", "prevents"),
+            ("treats", "causes")
+        ]
+        
+        relationships = []
+        
+        for type1, type2 in conflicting_types:
+            # Find relationships with conflicting types
+            query = {
+                "$or": [
+                    {"source_entity": source, "target_entity": target, "relationship_type": type1},
+                    {"source_entity": source, "target_entity": target, "relationship_type": type2},
+                    {"source_entity": target, "target_entity": source, "relationship_type": type1},
+                    {"source_entity": target, "target_entity": source, "relationship_type": type2}
+                ]
+            }
+            
+            cursor = collection.find(query)
+            async for doc in cursor:
+                doc["_id"] = str(doc["_id"])
+                relationships.append(RelationshipResponse(**doc))
+        
+        return relationships
+    
+    @staticmethod
+    async def consolidate_relationship_strength(relationship_id: str) -> float:
+        """Calculate consolidated strength for a relationship using noisy-OR"""
+        collection = await RelationshipCollection.get_collection()
+        
+        relationship = await collection.find_one({"_id": ObjectId(relationship_id)})
+        if not relationship:
+            return 0.0
+        
+        # Get all relationships with the same source, target, and type
+        query = {
+            "source_entity": relationship["source_entity"],
+            "target_entity": relationship["target_entity"],
+            "relationship_type": relationship["relationship_type"]
+        }
+        
+        cursor = collection.find(query)
+        strengths = []
+        
+        async for doc in cursor:
+            strengths.append(doc.get("relationship_strength", 0.0))
+        
+        if not strengths:
+            return 0.0
+        
+        # Calculate noisy-OR: 1 - ∏(1 - strength_i)
+        noisy_or_strength = 1.0
+        for strength in strengths:
+            noisy_or_strength *= (1.0 - strength)
+        
+        return 1.0 - noisy_or_strength
+    
+    @staticmethod
+    async def get_relationship_evidence_count(relationship_id: str) -> int:
+        """Get number of evidence sources for a relationship"""
+        collection = await RelationshipCollection.get_collection()
+        
+        relationship = await collection.find_one({"_id": ObjectId(relationship_id)})
+        if not relationship:
+            return 0
+        
+        # Count unique paper_ids that support this relationship
+        return len(relationship.get("paper_ids", []))
+    
+    @staticmethod
+    async def update_relationship_strength(relationship_id: str, new_strength: float) -> bool:
+        """Update relationship strength after consolidation"""
+        collection = await RelationshipCollection.get_collection()
+        
+        result = await collection.update_one(
+            {"_id": ObjectId(relationship_id)},
+            {
+                "$set": {
+                    "relationship_strength": new_strength,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return result.modified_count > 0
 
 
 async def initialize_database():

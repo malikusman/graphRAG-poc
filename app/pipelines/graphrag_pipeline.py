@@ -12,6 +12,9 @@ import json
 
 from app.core.config import settings
 from app.configs.schemas import load_prompt, ENTITY_CATEGORIES, RELATIONSHIP_TYPES
+from app.services.entity_canonicalizer import EntityCanonicalizer
+from app.services.contradiction_detector import ContradictionDetector
+from app.services.global_graph_manager import GlobalGraphManager
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,11 @@ class GraphRAGState(TypedDict):
     doc_relationships: List[Dict[str, Any]]
     final_entities: List[Dict[str, Any]]
     final_relationships: List[Dict[str, Any]]
+    # NEW FIELDS FOR MULTI-DOCUMENT PROCESSING:
+    global_entities: List[Dict[str, Any]]      # Existing global entities
+    global_relationships: List[Dict[str, Any]] # Existing global relationships
+    entity_merges: List[Dict[str, Any]]        # Entity merge operations
+    contradictions: List[Dict[str, Any]]       # Detected contradictions
     errors: List[str]
 
 
@@ -55,6 +63,11 @@ class GraphRAGPipeline:
         # Create output parsers
         self.entity_parser = JsonOutputParser()
         self.relationship_parser = JsonOutputParser()
+        
+        # Initialize Reduce phase services
+        self.entity_canonicalizer = EntityCanonicalizer()
+        self.contradiction_detector = ContradictionDetector()
+        self.global_graph_manager = GlobalGraphManager()
         
         # Build the graph
         self.graph = self._build_graph()
@@ -256,26 +269,92 @@ class GraphRAGPipeline:
         return state
     
     async def _reduce_entities(self, state: GraphRAGState) -> GraphRAGState:
-        """Reduce phase: Canonicalize entities across documents (placeholder)"""
+        """Reduce phase: Canonicalize entities across documents"""
         logger.info(f"Starting entity reduction for document {state['document_id']}")
         
-        # For now, just pass through the document entities
-        # In a full implementation, this would merge with existing entities
-        state["final_entities"] = state["doc_entities"]
-        
-        logger.info(f"Entity reduction complete: {len(state['final_entities'])} final entities")
-        return state
+        try:
+            # Convert doc_entities to Entity objects for processing
+            from app.models.entities import Entity
+            entities = []
+            for entity_data in state["doc_entities"]:
+                entity = Entity(
+                    entity_name=entity_data["entity_name"],
+                    entity_type=entity_data["entity_type"],
+                    entity_category=entity_data["entity_category"],
+                    aliases=entity_data.get("aliases", []),
+                    entity_description=entity_data["entity_description"],
+                    frequency=entity_data.get("frequency", 1),
+                    paper_ids=entity_data.get("paper_ids", []),
+                    section_ids=entity_data.get("section_ids", [])
+                )
+                entities.append(entity)
+            
+            # Process entity canonicalization
+            canonicalization_results = await self.entity_canonicalizer.process_entity_canonicalization(entities)
+            
+            # Update state with canonicalization results
+            state["entity_merges"] = canonicalization_results.get("merge_operations", [])
+            state["final_entities"] = canonicalization_results.get("canonical_entities", [])
+            
+            # Add any errors from canonicalization
+            if canonicalization_results.get("errors"):
+                state["errors"].extend(canonicalization_results["errors"])
+            
+            logger.info(f"Entity reduction complete: {len(state['final_entities'])} final entities, {len(state['entity_merges'])} merges")
+            return state
+            
+        except Exception as e:
+            error_msg = f"Error in entity reduction: {str(e)}"
+            logger.error(error_msg)
+            state["errors"].append(error_msg)
+            # Fallback to original entities
+            state["final_entities"] = state["doc_entities"]
+            return state
     
     async def _reduce_relationships(self, state: GraphRAGState) -> GraphRAGState:
-        """Reduce phase: Canonicalize relationships across documents (placeholder)"""
+        """Reduce phase: Canonicalize relationships across documents"""
         logger.info(f"Starting relationship reduction for document {state['document_id']}")
         
-        # For now, just pass through the document relationships
-        # In a full implementation, this would merge with existing relationships
-        state["final_relationships"] = state["doc_relationships"]
-        
-        logger.info(f"Relationship reduction complete: {len(state['final_relationships'])} final relationships")
-        return state
+        try:
+            # Convert doc_relationships to Relationship objects for processing
+            from app.models.relationships import Relationship
+            relationships = []
+            for rel_data in state["doc_relationships"]:
+                relationship = Relationship(
+                    source_entity=rel_data["source_entity"],
+                    target_entity=rel_data["target_entity"],
+                    relationship_type=rel_data["relationship_type"],
+                    relationship_strength=rel_data["relationship_strength"],
+                    description=rel_data["description"],
+                    paper_ids=rel_data.get("paper_ids", []),
+                    section_ids=rel_data.get("section_ids", [])
+                )
+                relationships.append(relationship)
+            
+            # Process contradiction detection
+            contradiction_results = await self.contradiction_detector.process_contradiction_detection(relationships)
+            
+            # Update state with contradiction results
+            state["contradictions"] = contradiction_results.get("contradictions", [])
+            
+            # Add any errors from contradiction detection
+            if contradiction_results.get("errors"):
+                state["errors"].extend(contradiction_results["errors"])
+            
+            # For now, use the original relationships as final relationships
+            # In a full implementation, we would consolidate based on contradiction resolution
+            state["final_relationships"] = state["doc_relationships"]
+            
+            logger.info(f"Relationship reduction complete: {len(state['final_relationships'])} final relationships, {len(state['contradictions'])} contradictions")
+            return state
+            
+        except Exception as e:
+            error_msg = f"Error in relationship reduction: {str(e)}"
+            logger.error(error_msg)
+            state["errors"].append(error_msg)
+            # Fallback to original relationships
+            state["final_relationships"] = state["doc_relationships"]
+            return state
     
     async def process_document(self, document_id: str, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -298,6 +377,11 @@ class GraphRAGPipeline:
             doc_relationships=[],
             final_entities=[],
             final_relationships=[],
+            # NEW FIELDS FOR MULTI-DOCUMENT PROCESSING:
+            global_entities=[],
+            global_relationships=[],
+            entity_merges=[],
+            contradictions=[],
             errors=[]
         )
         
@@ -312,6 +396,8 @@ class GraphRAGPipeline:
                 "relationships_extracted": len(result["temp_relationships"]),
                 "final_entities": len(result["final_entities"]),
                 "final_relationships": len(result["final_relationships"]),
+                "entity_merges": len(result["entity_merges"]),
+                "contradictions": len(result["contradictions"]),
                 "errors": result["errors"]
             }
             
