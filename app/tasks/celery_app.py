@@ -14,7 +14,7 @@ celery_app = Celery(
     "sagewrite_graphrag",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["app.tasks.processing_tasks"]
+    include=["app.tasks.processing_tasks", "app.tasks.graph_tasks"]
 )
 
 # Celery configuration

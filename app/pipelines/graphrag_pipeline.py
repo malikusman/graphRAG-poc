@@ -394,8 +394,8 @@ class GraphRAGPipeline:
                 "document_id": document_id,
                 "entities_extracted": len(result["temp_entities"]),
                 "relationships_extracted": len(result["temp_relationships"]),
-                "final_entities": len(result["final_entities"]),
-                "final_relationships": len(result["final_relationships"]),
+                "final_entities": result["final_entities"],
+                "final_relationships": result["final_relationships"],
                 "entity_merges": len(result["entity_merges"]),
                 "contradictions": len(result["contradictions"]),
                 "errors": result["errors"]
@@ -409,6 +409,6 @@ class GraphRAGPipeline:
                 "error": str(e),
                 "entities_extracted": 0,
                 "relationships_extracted": 0,
-                "final_entities": 0,
-                "final_relationships": 0
+                "final_entities": [],
+                "final_relationships": []
             }

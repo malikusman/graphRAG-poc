@@ -115,31 +115,112 @@ def process_document(document_id: str):
         
         if graphrag_result["success"]:
             logger.info(f"GraphRAG processing complete: {graphrag_result['final_entities']} entities, {graphrag_result['final_relationships']} relationships")
+            
+            # Store entities and relationships in database
+            logger.info("Storing entities and relationships in database...")
+            from app.models.entities import Entity
+            from app.models.relationships import Relationship
+            from app.database.models import EntityCollection, RelationshipCollection
+            
+            # Store entities
+            for entity_data in graphrag_result.get("final_entities", []):
+                try:
+                    entity = Entity(
+                        entity_name=entity_data["entity_name"],
+                        entity_type=entity_data["entity_type"],
+                        entity_category=entity_data["entity_category"],
+                        entity_description=entity_data.get("description"),
+                        aliases=entity_data.get("aliases", []),
+                        frequency=entity_data.get("frequency", 1),
+                        paper_ids=[document_id],
+                        section_ids=entity_data.get("section_ids", [])
+                    )
+                    try:
+                        # Use a synchronous approach by creating a new event loop in a thread
+                        import concurrent.futures
+                        import threading
+                        
+                        def run_async_in_thread():
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                return new_loop.run_until_complete(EntityCollection.insert_entity(entity))
+                            finally:
+                                new_loop.close()
+                        
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(run_async_in_thread)
+                            future.result()
+                    except Exception as e:
+                        logger.error(f"Error in async entity storage: {str(e)}")
+                        # Fallback: try direct asyncio.run
+                        try:
+                            asyncio.run(EntityCollection.insert_entity(entity))
+                        except Exception as fallback_e:
+                            logger.error(f"Fallback entity storage also failed: {str(fallback_e)}")
+                except Exception as e:
+                    logger.error(f"Error storing entity {entity_data.get('entity_name', 'unknown')}: {str(e)}")
+            
+            # Store relationships
+            for rel_data in graphrag_result.get("final_relationships", []):
+                try:
+                    relationship = Relationship(
+                        source_entity=rel_data["source_entity"],
+                        target_entity=rel_data["target_entity"],
+                        relationship_type=rel_data["relationship_type"],
+                        relationship_strength=rel_data["relationship_strength"],
+                        description=rel_data["description"],
+                        paper_ids=[document_id],
+                        section_ids=rel_data.get("section_ids", [])
+                    )
+                    try:
+                        # Use a synchronous approach by creating a new event loop in a thread
+                        import concurrent.futures
+                        import threading
+                        
+                        def run_async_in_thread():
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                return new_loop.run_until_complete(RelationshipCollection.insert_relationship(relationship))
+                            finally:
+                                new_loop.close()
+                        
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(run_async_in_thread)
+                            future.result()
+                    except Exception as e:
+                        logger.error(f"Error in async relationship storage: {str(e)}")
+                        # Fallback: try direct asyncio.run
+                        try:
+                            asyncio.run(RelationshipCollection.insert_relationship(relationship))
+                        except Exception as fallback_e:
+                            logger.error(f"Fallback relationship storage also failed: {str(fallback_e)}")
+                except Exception as e:
+                    logger.error(f"Error storing relationship {rel_data.get('source_entity', 'unknown')}-{rel_data.get('target_entity', 'unknown')}: {str(e)}")
+            
+            logger.info("Entities and relationships stored in database")
         else:
             logger.error(f"GraphRAG processing failed: {graphrag_result.get('error', 'Unknown error')}")
         
         # Step 6: Update global graph (90%)
         logger.info("Step 6: Updating global graph...")
         
-        # Initialize global_update_result
-        global_update_result = {"status": "skipped", "error": "Not implemented yet"}
-        
         # Update global graph with new entities and relationships
-        # Note: For now, we'll skip the global graph update to avoid AsyncResult serialization issues
-        # from app.tasks.graph_tasks import update_global_graph
-        # global_update_task = update_global_graph.delay(document_id)
-        # 
-        # # Wait for global graph update to complete
-        # try:
-        #     global_update_result = global_update_task.get(timeout=300)  # 5 minute timeout
-        #     if global_update_result.get("current", 0) == 100:
-        #         logger.info("Global graph update completed successfully")
-        #     else:
-        #         logger.warning(f"Global graph update completed with issues: {global_update_result.get('status', 'Unknown')}")
-        # except Exception as e:
-        #     logger.error(f"Global graph update failed: {str(e)}")
-        #     global_update_result = {"error": str(e)}
-        #     # Continue processing even if global graph update fails
+        from app.tasks.graph_tasks import update_global_graph
+        global_update_task = update_global_graph.delay(document_id)
+        
+        # Wait for global graph update to complete
+        try:
+            global_update_result = global_update_task.get(timeout=300)  # 5 minute timeout
+            if global_update_result and global_update_result.get("current", 0) == 100:
+                logger.info("Global graph update completed successfully")
+            else:
+                logger.warning(f"Global graph update completed with issues: {global_update_result.get('status', 'Unknown') if global_update_result else 'No result returned'}")
+        except Exception as e:
+            logger.error(f"Global graph update failed: {str(e)}")
+            global_update_result = {"error": str(e)}
+            # Continue processing even if global graph update fails
         
         # Step 7: Finalization (100%)
         logger.info("Step 7: Finalizing...")
@@ -169,7 +250,7 @@ def process_document(document_id: str):
                 } if 'graphrag_result' in locals() else None,
                 "global_graph_update": {
                     "status": str(global_update_result.get("status", "unknown")),
-                } if 'global_update_result' in locals() else None
+                } if global_update_result is not None else None
             }
         }
         

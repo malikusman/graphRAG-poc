@@ -117,6 +117,7 @@ class EntityCanonicalizer:
             
             if "canonical_entity" in result and result["analysis"]["should_merge"]:
                 canonical_data = result["canonical_entity"]
+                logger.info(f"Canonical data received: {canonical_data}")
                 
                 # Create canonical entity
                 canonical_entity = Entity(
@@ -124,7 +125,7 @@ class EntityCanonicalizer:
                     entity_type=canonical_data["entity_type"],
                     entity_category=canonical_data["entity_category"],
                     aliases=canonical_data["aliases"],
-                    entity_description=canonical_data["description"],
+                    entity_description=canonical_data.get("description"),
                     frequency=sum(entity.frequency for entity in entities),
                     paper_ids=list(set([pid for entity in entities for pid in entity.paper_ids])),
                     section_ids=list(set([sid for entity in entities for sid in entity.section_ids]))
@@ -138,6 +139,9 @@ class EntityCanonicalizer:
                 
         except Exception as e:
             logger.error(f"Error merging entities: {str(e)}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     
     async def canonicalize_entity_name(self, entity_name: str) -> str:

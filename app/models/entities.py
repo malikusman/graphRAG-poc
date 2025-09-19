@@ -15,6 +15,10 @@ class EntityType(str, Enum):
     ORGANISM = "organism"
     GENE = "gene"
     PROTEIN = "protein"
+    MOLECULE = "molecule"
+    GENETIC_VARIANT = "genetic_variant"
+    DISEASE = "disease"
+    PHYSIOLOGICAL_PROCESS = "physiological_process"
     ALGORITHM = "algorithm"
     MODEL = "model"
     FRAMEWORK = "framework"
@@ -30,6 +34,7 @@ class EntityType(str, Enum):
     FINDING = "finding"
     OBSERVATION = "observation"
     METRIC = "metric"
+    MEASUREMENT = "measurement"
     INDEX = "index"
     STATISTICAL_PARAMETER = "statistical_parameter"
     AUTHOR = "author"
@@ -60,6 +65,13 @@ class EntityCategory(str, Enum):
     CONCEPTS_AND_IDEAS = "concepts_and_ideas"
     POLICIES_AND_RULES = "policies_and_rules"
     TIME_AND_PLACE = "time_and_place"
+    BIOLOGICAL_ENTITIES = "biological_entities"
+    TECHNOLOGIES_AND_TOOLS = "technologies_and_tools"
+    MEASUREMENTS_AND_METRICS = "measurements_and_metrics"
+    DISEASES_AND_DISORDERS = "diseases_and_disorders"
+    PHYSIOLOGICAL_PROCESSES = "physiological_processes"
+    CHEMICAL_ENTITIES = "chemical_entities"
+    OTHER_CONCEPTS = "other_concepts"
 
 
 class Entity(BaseModel):
