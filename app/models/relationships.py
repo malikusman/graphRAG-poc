@@ -9,13 +9,14 @@ from enum import Enum
 
 
 class RelationshipType(str, Enum):
-    """Relationship types between entities - exactly 6 as per requirements"""
+    """Relationship types between entities"""
     USES = "uses"
     EVALUATED_BY = "evaluated_by"
     ASSOCIATED_WITH = "associated_with"  
     SUPPORTS = "supports"
     CONTRADICTS = "contradicts"
     LOCATED_IN = "located_in"
+    CONTAINS = "contains"
 
 
 class Relationship(BaseModel):
