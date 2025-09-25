@@ -28,6 +28,11 @@
   "suppresses",
   "prevents",
   "promotes",
-  "induces"
+  "induces",
+  "targets",
+  "cultured_in",
+  "supplemented_with",
+  "derived_from",
+  "encoded_by"
 ]
 
