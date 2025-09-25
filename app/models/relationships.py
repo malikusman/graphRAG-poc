@@ -36,6 +36,7 @@ class RelationshipType(str, Enum):
     INHIBITS = "inhibits"
     PREVENTS = "prevents"
     SUPPRESSES = "suppresses"
+    INDUCES = "induces"
 
 
 class Relationship(BaseModel):

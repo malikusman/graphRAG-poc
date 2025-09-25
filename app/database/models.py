@@ -15,6 +15,7 @@ from app.models import (
     Entity, EntityResponse, EntityType, EntityCategory,
     Relationship, RelationshipResponse, RelationshipType
 )
+from app.utils.math_utils import calculate_noisy_or_strength
 
 
 class DocumentCollection:
@@ -534,12 +535,8 @@ class RelationshipCollection:
         if not strengths:
             return 0.0
         
-        # Calculate noisy-OR: 1 - ∏(1 - strength_i)
-        noisy_or_strength = 1.0
-        for strength in strengths:
-            noisy_or_strength *= (1.0 - strength)
-        
-        return 1.0 - noisy_or_strength
+        # Calculate noisy-OR using centralized utility function
+        return calculate_noisy_or_strength(strengths)
     
     @staticmethod
     async def get_relationship_evidence_count(relationship_id: str) -> int:

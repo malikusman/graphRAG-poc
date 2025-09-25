@@ -5,6 +5,7 @@ from datetime import datetime
 from app.database.models import EntityCollection, RelationshipCollection
 from app.models.entities import Entity
 from app.models.relationships import Relationship
+from app.utils.math_utils import calculate_noisy_or_strength
 
 logger = logging.getLogger(__name__)
 
@@ -103,14 +104,16 @@ class GlobalGraphManager:
                     ]
                     
                     if same_type_relationships:
-                        # Relationship exists, update strength using noisy-OR
+                        # Relationship exists, update strength using proper noisy-OR
+                        # Collect all existing strengths plus the new one
+                        all_strengths = [rel.relationship_strength for rel in same_type_relationships]
+                        all_strengths.append(relationship.relationship_strength)
+                        
+                        # Calculate new strength using proper noisy-OR formula
+                        new_strength = calculate_noisy_or_strength(all_strengths)
+                        
+                        # Update the first existing relationship with the new consolidated strength
                         existing_rel = same_type_relationships[0]
-                        
-                        # Calculate new strength using noisy-OR
-                        current_strength = existing_rel.relationship_strength
-                        new_strength = 1 - (1 - current_strength) * (1 - relationship.relationship_strength)
-                        
-                        # Update the relationship
                         await RelationshipCollection.update_relationship_strength(
                             existing_rel.id,
                             new_strength

@@ -15,6 +15,7 @@ from app.configs.schemas import load_prompt, ENTITY_CATEGORIES, RELATIONSHIP_TYP
 from app.services.entity_canonicalizer import EntityCanonicalizer
 from app.services.contradiction_detector import ContradictionDetector
 from app.services.global_graph_manager import GlobalGraphManager
+from app.utils.math_utils import calculate_noisy_or_strength
 
 logger = logging.getLogger(__name__)
 
@@ -241,10 +242,9 @@ class GraphRAGPipeline:
         # Merge relationships using noisy-OR
         doc_relationships = []
         for (source, target, rel_type), relationships in rel_groups.items():
-            # Calculate noisy-OR strength
+            # Calculate noisy-OR strength using proper formula
             strengths = [rel["relationship_strength"] for rel in relationships]
-            noisy_or_strength = 1 - (1 - min(strengths)) * (1 - max(strengths))
-            noisy_or_strength = min(noisy_or_strength, 0.99)  # Cap at 0.99
+            noisy_or_strength = calculate_noisy_or_strength(strengths)
             
             # Combine descriptions
             descriptions = [rel["description"] for rel in relationships]
