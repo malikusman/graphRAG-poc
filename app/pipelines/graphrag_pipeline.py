@@ -41,6 +41,7 @@ class GraphRAGState(TypedDict):
     resolution_summary: Dict[str, Any]         # Summary of resolution strategies used
     consolidated_relationships: List[Dict[str, Any]]  # Consolidated relationship results
     consolidation_summary: Dict[str, Any]      # Summary of consolidation strategies used
+    global_processing_results: Dict[str, Any]  # Global graph processing results
     errors: List[str]
 
 
@@ -93,6 +94,7 @@ class GraphRAGPipeline:
         workflow.add_node("reduce_entities", self._reduce_entities)
         workflow.add_node("reduce_relationships", self._reduce_relationships)
         workflow.add_node("consolidate_relationships", self._consolidate_relationships)
+        workflow.add_node("update_global_graph", self._update_global_graph)  # NEW: Global graph integration
         
         # Add edges
         workflow.set_entry_point("map_entities")
@@ -102,7 +104,8 @@ class GraphRAGPipeline:
         workflow.add_edge("combine_relationships", "reduce_entities")
         workflow.add_edge("reduce_entities", "reduce_relationships")
         workflow.add_edge("reduce_relationships", "consolidate_relationships")
-        workflow.add_edge("consolidate_relationships", END)
+        workflow.add_edge("consolidate_relationships", "update_global_graph")  # NEW: Global graph update
+        workflow.add_edge("update_global_graph", END)  # NEW: End after global graph update
         
         return workflow.compile()
     
@@ -455,9 +458,79 @@ class GraphRAGPipeline:
             # Keep existing final_relationships
             return state
     
+    async def _update_global_graph(self, state: GraphRAGState) -> GraphRAGState:
+        """Update global graph with processed results from the pipeline"""
+        logger.info(f"Updating global graph with processed results for document {state['document_id']}")
+        
+        try:
+            # Convert final entities and relationships to Entity/Relationship objects
+            entities = []
+            relationships = []
+            
+            # Convert entities
+            for entity_data in state["final_entities"]:
+                try:
+                    from app.models.entities import Entity, EntityType, EntityCategory
+                    entity = Entity(
+                        entity_name=entity_data["entity_name"],
+                        entity_type=EntityType(entity_data["entity_type"]),
+                        entity_category=EntityCategory(entity_data["entity_category"]),
+                        entity_description=entity_data.get("entity_description"),
+                        aliases=entity_data.get("aliases", []),
+                        paper_ids=entity_data.get("paper_ids", []),
+                        section_ids=entity_data.get("section_ids", []),
+                        frequency=entity_data.get("frequency", 1)
+                    )
+                    entities.append(entity)
+                except Exception as e:
+                    logger.warning(f"Error converting entity {entity_data.get('entity_name', 'unknown')}: {str(e)}")
+                    continue
+            
+            # Convert relationships
+            for rel_data in state["final_relationships"]:
+                try:
+                    from app.models.relationships import Relationship, RelationshipType
+                    relationship = Relationship(
+                        source_entity=rel_data["source_entity"],
+                        target_entity=rel_data["target_entity"],
+                        relationship_type=RelationshipType(rel_data["relationship_type"]),
+                        relationship_strength=rel_data["relationship_strength"],
+                        description=rel_data.get("description"),
+                        paper_ids=rel_data.get("paper_ids", []),
+                        section_ids=rel_data.get("section_ids", [])
+                    )
+                    relationships.append(relationship)
+                except Exception as e:
+                    logger.warning(f"Error converting relationship {rel_data.get('source_entity', 'unknown')} -> {rel_data.get('target_entity', 'unknown')}: {str(e)}")
+                    continue
+            
+            # Process against global graph using enhanced GlobalGraphManager
+            global_results = await self.global_graph_manager.process_document_against_global_graph(
+                state["document_id"], entities, relationships
+            )
+            
+            # Update state with global processing results
+            state["global_processing_results"] = global_results
+            
+            # Add any errors from global processing
+            if global_results.get("errors"):
+                state["errors"].extend(global_results["errors"])
+            
+            logger.info(f"Global graph update complete for document {state['document_id']}: "
+                       f"{global_results.get('entities_processed', 0)} entities, "
+                       f"{global_results.get('relationships_processed', 0)} relationships processed")
+            
+            return state
+            
+        except Exception as e:
+            error_msg = f"Error updating global graph: {str(e)}"
+            logger.error(error_msg)
+            state["errors"].append(error_msg)
+            return state
+    
     async def process_document(self, document_id: str, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Process a document through the GraphRAG pipeline
+        Process a document through the GraphRAG pipeline with global graph integration
         
         Args:
             document_id: Document ID
@@ -466,7 +539,25 @@ class GraphRAGPipeline:
         Returns:
             Processing results
         """
-        # Initialize state
+        logger.info(f"Starting document processing with global graph integration: {document_id}")
+        
+        # Load global graph state
+        try:
+            global_state = await self.global_graph_manager.load_global_graph_state()
+            if global_state.get("error"):
+                logger.warning(f"Failed to load global graph state: {global_state['error']}")
+                global_entities = []
+                global_relationships = []
+            else:
+                global_entities = global_state["global_entities"]
+                global_relationships = global_state["global_relationships"]
+                logger.info(f"Loaded global graph state: {len(global_entities)} entities, {len(global_relationships)} relationships")
+        except Exception as e:
+            logger.error(f"Error loading global graph state: {str(e)}")
+            global_entities = []
+            global_relationships = []
+        
+        # Initialize state with global graph data
         initial_state = GraphRAGState(
             document_id=document_id,
             sections=sections,
@@ -476,15 +567,16 @@ class GraphRAGPipeline:
             doc_relationships=[],
             final_entities=[],
             final_relationships=[],
-            # NEW FIELDS FOR MULTI-DOCUMENT PROCESSING:
-            global_entities=[],
-            global_relationships=[],
+            # GLOBAL GRAPH INTEGRATION:
+            global_entities=global_entities,
+            global_relationships=global_relationships,
             entity_merges=[],
             contradictions=[],
             contradiction_resolutions=[],
             resolution_summary={},
             consolidated_relationships=[],
             consolidation_summary={},
+            global_processing_results={},
             errors=[]
         )
         
@@ -505,6 +597,7 @@ class GraphRAGPipeline:
                 "resolution_summary": result["resolution_summary"],
                 "consolidated_relationships": len(result["consolidated_relationships"]),
                 "consolidation_summary": result["consolidation_summary"],
+                "global_processing_results": result.get("global_processing_results", {}),
                 "errors": result["errors"]
             }
             
