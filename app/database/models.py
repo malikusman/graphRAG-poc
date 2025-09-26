@@ -382,6 +382,33 @@ class EntityCollection:
             "entity_type": entity.get("entity_type"),
             "entity_category": entity.get("entity_category")
         }
+    
+    @staticmethod
+    async def update_entity_merge(entity_id: str, aliases: List[str], paper_ids: List[str], section_ids: List[str], frequency: int) -> bool:
+        """Update entity with merged data from canonicalization"""
+        collection = await EntityCollection.get_collection()
+        
+        result = await collection.update_one(
+            {"_id": ObjectId(entity_id)},
+            {
+                "$set": {
+                    "aliases": aliases,
+                    "paper_ids": paper_ids,
+                    "section_ids": section_ids,
+                    "frequency": frequency,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return result.modified_count > 0
+    
+    @staticmethod
+    async def delete_entity(entity_id: str) -> bool:
+        """Delete an entity by ID"""
+        collection = await EntityCollection.get_collection()
+        
+        result = await collection.delete_one({"_id": ObjectId(entity_id)})
+        return result.deleted_count > 0
 
 
 class RelationshipCollection:
@@ -565,6 +592,39 @@ class RelationshipCollection:
             }
         )
         return result.modified_count > 0
+    
+    @staticmethod
+    async def update_relationship_provenance(relationship_id: str, paper_ids: List[str], section_ids: List[str]) -> bool:
+        """Update relationship provenance information"""
+        collection = await RelationshipCollection.get_collection()
+        
+        result = await collection.update_one(
+            {"_id": ObjectId(relationship_id)},
+            {
+                "$set": {
+                    "paper_ids": paper_ids,
+                    "section_ids": section_ids,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return result.modified_count > 0
+    
+    @staticmethod
+    async def find_relationship_by_entities_and_type(source_entity: str, target_entity: str, relationship_type: RelationshipType) -> Optional[RelationshipResponse]:
+        """Find a relationship by source entity, target entity, and relationship type"""
+        collection = await RelationshipCollection.get_collection()
+        
+        doc = await collection.find_one({
+            "source_entity": source_entity,
+            "target_entity": target_entity,
+            "relationship_type": relationship_type
+        })
+        
+        if doc:
+            doc["_id"] = str(doc["_id"])
+            return RelationshipResponse(**doc)
+        return None
 
 
 async def initialize_database():
