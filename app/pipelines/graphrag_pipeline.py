@@ -15,6 +15,7 @@ from app.configs.schemas import load_prompt, ENTITY_CATEGORIES, RELATIONSHIP_TYP
 from app.services.entity_canonicalizer import EntityCanonicalizer
 from app.services.contradiction_detector import ContradictionDetector
 from app.services.contradiction_resolver import ContradictionResolver
+from app.services.relationship_consolidator import RelationshipConsolidator
 from app.services.global_graph_manager import GlobalGraphManager
 from app.utils.math_utils import calculate_noisy_or_strength
 
@@ -38,6 +39,8 @@ class GraphRAGState(TypedDict):
     contradictions: List[Dict[str, Any]]       # Detected contradictions
     contradiction_resolutions: List[Dict[str, Any]]  # Contradiction resolution results
     resolution_summary: Dict[str, Any]         # Summary of resolution strategies used
+    consolidated_relationships: List[Dict[str, Any]]  # Consolidated relationship results
+    consolidation_summary: Dict[str, Any]      # Summary of consolidation strategies used
     errors: List[str]
 
 
@@ -72,6 +75,7 @@ class GraphRAGPipeline:
         self.entity_canonicalizer = EntityCanonicalizer()
         self.contradiction_detector = ContradictionDetector()
         self.contradiction_resolver = ContradictionResolver()
+        self.relationship_consolidator = RelationshipConsolidator()
         self.global_graph_manager = GlobalGraphManager()
         
         # Build the graph
@@ -88,6 +92,7 @@ class GraphRAGPipeline:
         workflow.add_node("combine_relationships", self._combine_relationships)
         workflow.add_node("reduce_entities", self._reduce_entities)
         workflow.add_node("reduce_relationships", self._reduce_relationships)
+        workflow.add_node("consolidate_relationships", self._consolidate_relationships)
         
         # Add edges
         workflow.set_entry_point("map_entities")
@@ -96,7 +101,8 @@ class GraphRAGPipeline:
         workflow.add_edge("combine_entities", "combine_relationships")
         workflow.add_edge("combine_relationships", "reduce_entities")
         workflow.add_edge("reduce_entities", "reduce_relationships")
-        workflow.add_edge("reduce_relationships", END)
+        workflow.add_edge("reduce_relationships", "consolidate_relationships")
+        workflow.add_edge("consolidate_relationships", END)
         
         return workflow.compile()
     
@@ -396,6 +402,59 @@ class GraphRAGPipeline:
             state["final_relationships"] = state["doc_relationships"]
             return state
     
+    async def _consolidate_relationships(self, state: GraphRAGState) -> GraphRAGState:
+        """Consolidate relationships using enhanced consolidation strategies"""
+        logger.info(f"Starting relationship consolidation for document {state['document_id']}")
+        
+        try:
+            # Convert final_relationships to Relationship objects for processing
+            from app.models.relationships import Relationship
+            relationships = []
+            for rel_data in state["final_relationships"]:
+                relationship = Relationship(
+                    source_entity=rel_data["source_entity"],
+                    target_entity=rel_data["target_entity"],
+                    relationship_type=rel_data["relationship_type"],
+                    relationship_strength=rel_data["relationship_strength"],
+                    description=rel_data["description"],
+                    paper_ids=rel_data.get("paper_ids", []),
+                    section_ids=rel_data.get("section_ids", [])
+                )
+                relationships.append(relationship)
+            
+            # Process relationship consolidation
+            consolidation_results = await self.relationship_consolidator.consolidate_relationships(relationships)
+            
+            # Update state with consolidation results
+            state["consolidated_relationships"] = consolidation_results.get("consolidated_relationships", [])
+            state["consolidation_summary"] = consolidation_results.get("consolidation_summary", {})
+            
+            # Add any errors from consolidation
+            if consolidation_results.get("errors"):
+                state["errors"].extend(consolidation_results["errors"])
+            
+            # Update final_relationships with consolidated results
+            if state["consolidated_relationships"]:
+                consolidated_final_relationships = []
+                for consolidation_result in state["consolidated_relationships"]:
+                    if "consolidation_result" in consolidation_result:
+                        consolidated_rel = consolidation_result["consolidation_result"]["consolidated_relationship"]
+                        consolidated_final_relationships.append(consolidated_rel)
+                
+                if consolidated_final_relationships:
+                    state["final_relationships"] = consolidated_final_relationships
+            
+            logger.info(f"Relationship consolidation complete: {len(state['consolidated_relationships'])} consolidated relationships, "
+                       f"{state['consolidation_summary']}")
+            return state
+            
+        except Exception as e:
+            error_msg = f"Error in relationship consolidation: {str(e)}"
+            logger.error(error_msg)
+            state["errors"].append(error_msg)
+            # Keep existing final_relationships
+            return state
+    
     async def process_document(self, document_id: str, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Process a document through the GraphRAG pipeline
@@ -424,6 +483,8 @@ class GraphRAGPipeline:
             contradictions=[],
             contradiction_resolutions=[],
             resolution_summary={},
+            consolidated_relationships=[],
+            consolidation_summary={},
             errors=[]
         )
         
@@ -442,6 +503,8 @@ class GraphRAGPipeline:
                 "contradictions": len(result["contradictions"]),
                 "contradiction_resolutions": len(result["contradiction_resolutions"]),
                 "resolution_summary": result["resolution_summary"],
+                "consolidated_relationships": len(result["consolidated_relationships"]),
+                "consolidation_summary": result["consolidation_summary"],
                 "errors": result["errors"]
             }
             
