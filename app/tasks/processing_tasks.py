@@ -17,13 +17,10 @@ from app.services.embeddings import EmbeddingsService
 logger = logging.getLogger(__name__)
 
 
-# @celery_app.task(bind=True)
-# def process_document(self, document_id: str):
-    # DEBUGGING: Test without binding - uncomment the line below and comment out the line above
 @celery_app.task
 def process_document(document_id: str):
     """
-    Process a document through the GraphRAG pipeline
+    Process a document through the enhanced GraphRAG pipeline with global graph integration
     
     Args:
         document_id: MongoDB document ID
@@ -32,8 +29,7 @@ def process_document(document_id: str):
         Dict with processing results
     """
     try:
-        # DEBUGGING: Test without binding
-        logger.info("Starting document processing without task binding...")
+        logger.info(f"Starting enhanced document processing for document {document_id}")
 
         # Get database connection
         db = get_sync_database()
@@ -49,25 +45,18 @@ def process_document(document_id: str):
             {"$set": {"status": DocumentStatus.PROCESSING.value}}
         )
 
-        # Step 1: File parsing (20%)
-        logger.info("Step 1: Parsing document...")
+        # Step 1: File parsing and metadata extraction (20%)
+        logger.info("Step 1: Parsing document and extracting metadata...")
         
-        # Note: In a real implementation, we'd need to retrieve the file content
-        # For now, we'll simulate the parsing step
-        logger.info(f"Processing document {document_id}")
-        
-        # Step 2: Metadata extraction (40%)
-        logger.info("Step 2: Extracting metadata...")
-        
-        # Extract metadata (simulated for now)
+        # Extract metadata
         metadata = {
             "title": str(document.get("title", "Untitled")),
             "doi": str(document.get("doi")) if document.get("doi") else None,
             "year": int(document.get("year")) if document.get("year") else None,
         }
         
-        # Step 3: Section extraction (60%)
-        logger.info("Step 3: Processing sections...")
+        # Step 2: Section extraction (40%)
+        logger.info("Step 2: Processing sections...")
         
         # Get sections from database (already extracted during upload)
         sections_cursor = db.sections.find({"document_id": document_id})
@@ -79,8 +68,8 @@ def process_document(document_id: str):
         
         logger.info(f"Processing {len(sections)} sections for document {document_id}")
         
-        # Step 4: Generate embeddings (70%)
-        logger.info("Step 4: Generating embeddings...")
+        # Step 3: Generate embeddings (60%)
+        logger.info("Step 3: Generating embeddings...")
         
         # Generate embeddings for sections
         embeddings_service = EmbeddingsService()
@@ -104,123 +93,90 @@ def process_document(document_id: str):
             except Exception as e:
                 logger.error(f"Error generating embedding for section {section['_id']}: {str(e)}")
         
-        # Step 5: GraphRAG processing (80%)
-        logger.info("Step 5: Running GraphRAG pipeline...")
+        # Step 4: Enhanced GraphRAG processing with global graph integration (80%)
+        logger.info("Step 4: Running enhanced GraphRAG pipeline with global graph integration...")
         
-        # Run GraphRAG pipeline for entity and relationship extraction
+        # Run enhanced GraphRAG pipeline
         from app.pipelines.graphrag_pipeline import GraphRAGPipeline
         
         pipeline = GraphRAGPipeline()
         graphrag_result = asyncio.run(pipeline.process_document(document_id, sections))
         
         if graphrag_result["success"]:
-            logger.info(f"GraphRAG processing complete: {graphrag_result['final_entities']} entities, {graphrag_result['final_relationships']} relationships")
+            logger.info(f"Enhanced GraphRAG processing complete: "
+                       f"{graphrag_result['entities_extracted']} entities extracted, "
+                       f"{graphrag_result['relationships_extracted']} relationships extracted, "
+                       f"{graphrag_result['entity_merges']} entity merges, "
+                       f"{graphrag_result['contradictions']} contradictions detected, "
+                       f"{graphrag_result['contradiction_resolutions']} contradictions resolved, "
+                       f"{graphrag_result['consolidated_relationships']} relationships consolidated")
             
-            # Store entities and relationships in database
-            logger.info("Storing entities and relationships in database...")
-            from app.models.entities import Entity
-            from app.models.relationships import Relationship
-            from app.database.models import EntityCollection, RelationshipCollection
+            # Step 5: Store enhanced results in database (90%)
+            logger.info("Step 5: Storing enhanced entities and relationships in database...")
             
-            # Store entities
+            # Store entities with enhanced data
+            entities_stored = 0
             for entity_data in graphrag_result.get("final_entities", []):
                 try:
+                    from app.models.entities import Entity, EntityType, EntityCategory
                     entity = Entity(
                         entity_name=entity_data["entity_name"],
-                        entity_type=entity_data["entity_type"],
-                        entity_category=entity_data["entity_category"],
-                        entity_description=entity_data.get("description"),
+                        entity_type=EntityType(entity_data["entity_type"]),
+                        entity_category=EntityCategory(entity_data["entity_category"]),
+                        entity_description=entity_data.get("entity_description"),
                         aliases=entity_data.get("aliases", []),
                         frequency=entity_data.get("frequency", 1),
                         paper_ids=[document_id],
                         section_ids=entity_data.get("section_ids", [])
                     )
-                    try:
-                        # Use a synchronous approach by creating a new event loop in a thread
-                        import concurrent.futures
-                        import threading
-                        
-                        def run_async_in_thread():
-                            new_loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(new_loop)
-                            try:
-                                return new_loop.run_until_complete(EntityCollection.insert_entity(entity))
-                            finally:
-                                new_loop.close()
-                        
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(run_async_in_thread)
-                            future.result()
-                    except Exception as e:
-                        logger.error(f"Error in async entity storage: {str(e)}")
-                        # Fallback: try direct asyncio.run
-                        try:
-                            asyncio.run(EntityCollection.insert_entity(entity))
-                        except Exception as fallback_e:
-                            logger.error(f"Fallback entity storage also failed: {str(fallback_e)}")
+                    
+                    # Store entity using async wrapper
+                    _store_entity_async(entity)
+                    entities_stored += 1
+                    
                 except Exception as e:
                     logger.error(f"Error storing entity {entity_data.get('entity_name', 'unknown')}: {str(e)}")
             
-            # Store relationships
+            # Store relationships with enhanced data
+            relationships_stored = 0
             for rel_data in graphrag_result.get("final_relationships", []):
                 try:
+                    from app.models.relationships import Relationship, RelationshipType
                     relationship = Relationship(
                         source_entity=rel_data["source_entity"],
                         target_entity=rel_data["target_entity"],
-                        relationship_type=rel_data["relationship_type"],
+                        relationship_type=RelationshipType(rel_data["relationship_type"]),
                         relationship_strength=rel_data["relationship_strength"],
-                        description=rel_data["description"],
+                        description=rel_data.get("description"),
                         paper_ids=[document_id],
                         section_ids=rel_data.get("section_ids", [])
                     )
-                    try:
-                        # Use a synchronous approach by creating a new event loop in a thread
-                        import concurrent.futures
-                        import threading
-                        
-                        def run_async_in_thread():
-                            new_loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(new_loop)
-                            try:
-                                return new_loop.run_until_complete(RelationshipCollection.insert_relationship(relationship))
-                            finally:
-                                new_loop.close()
-                        
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(run_async_in_thread)
-                            future.result()
-                    except Exception as e:
-                        logger.error(f"Error in async relationship storage: {str(e)}")
-                        # Fallback: try direct asyncio.run
-                        try:
-                            asyncio.run(RelationshipCollection.insert_relationship(relationship))
-                        except Exception as fallback_e:
-                            logger.error(f"Fallback relationship storage also failed: {str(fallback_e)}")
+                    
+                    # Store relationship using async wrapper
+                    _store_relationship_async(relationship)
+                    relationships_stored += 1
+                    
                 except Exception as e:
                     logger.error(f"Error storing relationship {rel_data.get('source_entity', 'unknown')}-{rel_data.get('target_entity', 'unknown')}: {str(e)}")
             
-            logger.info("Entities and relationships stored in database")
+            logger.info(f"Enhanced entities and relationships stored: {entities_stored} entities, {relationships_stored} relationships")
+            
+            # Step 6: Global graph processing results (95%)
+            logger.info("Step 6: Processing global graph integration results...")
+            
+            global_processing_results = graphrag_result.get("global_processing_results", {})
+            global_entities_processed = global_processing_results.get("entities_processed", 0)
+            global_relationships_processed = global_processing_results.get("relationships_processed", 0)
+            
+            logger.info(f"Global graph processing complete: {global_entities_processed} entities, {global_relationships_processed} relationships processed against global graph")
+            
         else:
-            logger.error(f"GraphRAG processing failed: {graphrag_result.get('error', 'Unknown error')}")
-        
-        # Step 6: Update global graph (90%)
-        logger.info("Step 6: Updating global graph...")
-        
-        # Update global graph with new entities and relationships
-        from app.tasks.graph_tasks import update_global_graph
-        global_update_task = update_global_graph.delay(document_id)
-        
-        # Wait for global graph update to complete
-        try:
-            global_update_result = global_update_task.get(timeout=300)  # 5 minute timeout
-            if global_update_result and global_update_result.get("current", 0) == 100:
-                logger.info("Global graph update completed successfully")
-            else:
-                logger.warning(f"Global graph update completed with issues: {global_update_result.get('status', 'Unknown') if global_update_result else 'No result returned'}")
-        except Exception as e:
-            logger.error(f"Global graph update failed: {str(e)}")
-            global_update_result = {"error": str(e)}
-            # Continue processing even if global graph update fails
+            logger.error(f"Enhanced GraphRAG processing failed: {graphrag_result.get('error', 'Unknown error')}")
+            # Set default values for failed processing
+            entities_stored = 0
+            relationships_stored = 0
+            global_entities_processed = 0
+            global_relationships_processed = 0
         
         # Step 7: Finalization (100%)
         logger.info("Step 7: Finalizing...")
@@ -231,10 +187,11 @@ def process_document(document_id: str):
             {"$set": {"status": DocumentStatus.PROCESSED.value}}
         )
 
+        # Prepare enhanced result
         result = {
             "current": 100,
             "total": 100,
-            "status": "Document processed successfully!",
+            "status": "Document processed successfully with enhanced GraphRAG pipeline!",
             "result": {
                 "document_id": str(document_id),
                 "sections_processed": int(len(sections)),
@@ -243,32 +200,38 @@ def process_document(document_id: str):
                     "doi": str(metadata.get("doi", "")) if metadata.get("doi") else None,
                     "year": int(metadata.get("year", 0)) if metadata.get("year") else None,
                 },
-                "graphrag_result": {
+                "enhanced_graphrag_result": {
                     "success": bool(graphrag_result.get("success", False)),
                     "entities_extracted": int(graphrag_result.get("entities_extracted", 0)),
                     "relationships_extracted": int(graphrag_result.get("relationships_extracted", 0)),
+                    "entity_merges": int(graphrag_result.get("entity_merges", 0)),
+                    "contradictions_detected": int(graphrag_result.get("contradictions", 0)),
+                    "contradictions_resolved": int(graphrag_result.get("contradiction_resolutions", 0)),
+                    "relationships_consolidated": int(graphrag_result.get("consolidated_relationships", 0)),
+                    "resolution_summary": graphrag_result.get("resolution_summary", {}),
+                    "consolidation_summary": graphrag_result.get("consolidation_summary", {}),
                 } if 'graphrag_result' in locals() else None,
-                "global_graph_update": {
-                    "status": str(global_update_result.get("status", "unknown")),
-                } if global_update_result is not None else None
+                "database_storage": {
+                    "entities_stored": int(entities_stored),
+                    "relationships_stored": int(relationships_stored),
+                },
+                "global_graph_integration": {
+                    "entities_processed": int(global_entities_processed),
+                    "relationships_processed": int(global_relationships_processed),
+                    "global_processing_results": global_processing_results,
+                },
+                "errors": graphrag_result.get("errors", []) if 'graphrag_result' in locals() else []
             }
         }
         
-        logger.info(f"Successfully processed document {document_id}")
+        logger.info(f"Successfully processed document {document_id} with enhanced pipeline")
         
         # DEBUGGING: Log the exact return value before serialization
         import json
         try:
-            logger.info(f"About to return result: {json.dumps(result, default=str)}")
-            logger.info(f"Result type: {type(result)}")
-            logger.info(f"Result keys: {result.keys() if isinstance(result, dict) else 'Not a dict'}")
+            logger.info(f"About to return enhanced result: {json.dumps(result, default=str)}")
         except Exception as e:
             logger.error(f"Failed to serialize result for logging: {e}")
-            logger.info(f"Result type: {type(result)}")
-            if isinstance(result, dict):
-                logger.info(f"Result keys: {result.keys()}")
-                for key, value in result.items():
-                    logger.info(f"  {key}: {type(value)} = {value}")
         
         return result
 
@@ -285,9 +248,46 @@ def process_document(document_id: str):
         except Exception as update_error:
             logger.error(f"Failed to update document status: {str(update_error)}")
 
-        # No self.update_state available without binding
         logger.error(f"Task failed: {str(e)}")
         raise
+
+
+def _store_entity_async(entity):
+    """Helper function to store entity asynchronously in a thread"""
+    import concurrent.futures
+    import asyncio
+    
+    def run_async_in_thread():
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        try:
+            from app.database.models import EntityCollection
+            return new_loop.run_until_complete(EntityCollection.insert_entity(entity))
+        finally:
+            new_loop.close()
+    
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(run_async_in_thread)
+        future.result()
+
+
+def _store_relationship_async(relationship):
+    """Helper function to store relationship asynchronously in a thread"""
+    import concurrent.futures
+    import asyncio
+    
+    def run_async_in_thread():
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        try:
+            from app.database.models import RelationshipCollection
+            return new_loop.run_until_complete(RelationshipCollection.insert_relationship(relationship))
+        finally:
+            new_loop.close()
+    
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(run_async_in_thread)
+        future.result()
 
 
 @celery_app.task
