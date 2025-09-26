@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.configs.schemas import load_prompt, ENTITY_CATEGORIES, RELATIONSHIP_TYPES
 from app.services.entity_canonicalizer import EntityCanonicalizer
 from app.services.contradiction_detector import ContradictionDetector
+from app.services.contradiction_resolver import ContradictionResolver
 from app.services.global_graph_manager import GlobalGraphManager
 from app.utils.math_utils import calculate_noisy_or_strength
 
@@ -35,6 +36,8 @@ class GraphRAGState(TypedDict):
     global_relationships: List[Dict[str, Any]] # Existing global relationships
     entity_merges: List[Dict[str, Any]]        # Entity merge operations
     contradictions: List[Dict[str, Any]]       # Detected contradictions
+    contradiction_resolutions: List[Dict[str, Any]]  # Contradiction resolution results
+    resolution_summary: Dict[str, Any]         # Summary of resolution strategies used
     errors: List[str]
 
 
@@ -68,6 +71,7 @@ class GraphRAGPipeline:
         # Initialize Reduce phase services
         self.entity_canonicalizer = EntityCanonicalizer()
         self.contradiction_detector = ContradictionDetector()
+        self.contradiction_resolver = ContradictionResolver()
         self.global_graph_manager = GlobalGraphManager()
         
         # Build the graph
@@ -312,8 +316,8 @@ class GraphRAGPipeline:
             return state
     
     async def _reduce_relationships(self, state: GraphRAGState) -> GraphRAGState:
-        """Reduce phase: Canonicalize relationships across documents"""
-        logger.info(f"Starting relationship reduction for document {state['document_id']}")
+        """Reduce phase: Enhanced relationship processing with contradiction detection and resolution"""
+        logger.info(f"Starting enhanced relationship reduction for document {state['document_id']}")
         
         try:
             # Convert doc_relationships to Relationship objects for processing
@@ -331,25 +335,61 @@ class GraphRAGPipeline:
                 )
                 relationships.append(relationship)
             
-            # Process contradiction detection
-            contradiction_results = await self.contradiction_detector.process_contradiction_detection(relationships)
+            # Prepare context information for enhanced analysis
+            context_info = {
+                "document_id": state["document_id"],
+                "publication_year": None,  # Could be extracted from document metadata
+                "paper_source": "unknown",  # Could be extracted from document metadata
+                "section_types": list(set([section.get("type", "unknown") for section in state.get("sections", [])]))
+            }
             
-            # Update state with contradiction results
+            # Process enhanced contradiction detection with resolver
+            contradiction_results = await self.contradiction_detector.process_contradiction_detection_with_resolver(
+                relationships, 
+                context_info, 
+                self.contradiction_resolver
+            )
+            
+            # Update state with enhanced contradiction results
             state["contradictions"] = contradiction_results.get("contradictions", [])
+            state["contradiction_resolutions"] = contradiction_results.get("resolutions", [])
+            state["resolution_summary"] = contradiction_results.get("resolution_summary", {})
             
             # Add any errors from contradiction detection
             if contradiction_results.get("errors"):
                 state["errors"].extend(contradiction_results["errors"])
             
-            # For now, use the original relationships as final relationships
-            # In a full implementation, we would consolidate based on contradiction resolution
-            state["final_relationships"] = state["doc_relationships"]
+            # Apply resolved relationships to final relationships
+            final_relationships = state["doc_relationships"].copy()
             
-            logger.info(f"Relationship reduction complete: {len(state['final_relationships'])} final relationships, {len(state['contradictions'])} contradictions")
+            # Update relationships based on resolution results
+            if contradiction_results.get("resolutions"):
+                for resolution in contradiction_results["resolutions"]:
+                    if resolution.get("resolution") == "evidence_based" or resolution.get("resolution") == "consensus_based":
+                        chosen_rel = resolution.get("chosen_relationship")
+                        if chosen_rel:
+                            # Update the chosen relationship in final_relationships
+                            for i, final_rel in enumerate(final_relationships):
+                                if (final_rel["source_entity"] == chosen_rel.get("source_entity") and
+                                    final_rel["target_entity"] == chosen_rel.get("target_entity") and
+                                    final_rel["relationship_type"] == chosen_rel.get("relationship_type")):
+                                    # Update with resolved relationship data
+                                    final_relationships[i].update({
+                                        "relationship_strength": chosen_rel.get("relationship_strength", final_rel["relationship_strength"]),
+                                        "description": chosen_rel.get("description", final_rel["description"]),
+                                        "resolution_applied": True,
+                                        "resolution_confidence": resolution.get("confidence", 0.0)
+                                    })
+                                    break
+            
+            state["final_relationships"] = final_relationships
+            
+            logger.info(f"Enhanced relationship reduction complete: {len(state['final_relationships'])} final relationships, "
+                       f"{len(state['contradictions'])} contradictions, {len(state['contradiction_resolutions'])} resolutions")
             return state
             
         except Exception as e:
-            error_msg = f"Error in relationship reduction: {str(e)}"
+            error_msg = f"Error in enhanced relationship reduction: {str(e)}"
             logger.error(error_msg)
             state["errors"].append(error_msg)
             # Fallback to original relationships
@@ -382,6 +422,8 @@ class GraphRAGPipeline:
             global_relationships=[],
             entity_merges=[],
             contradictions=[],
+            contradiction_resolutions=[],
+            resolution_summary={},
             errors=[]
         )
         
@@ -398,6 +440,8 @@ class GraphRAGPipeline:
                 "final_relationships": result["final_relationships"],
                 "entity_merges": len(result["entity_merges"]),
                 "contradictions": len(result["contradictions"]),
+                "contradiction_resolutions": len(result["contradiction_resolutions"]),
+                "resolution_summary": result["resolution_summary"],
                 "errors": result["errors"]
             }
             

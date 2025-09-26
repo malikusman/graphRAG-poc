@@ -32,8 +32,12 @@ class ContradictionDetector:
         ])
         self.parser = JsonOutputParser()
     
-    async def detect_relationship_contradictions(self, relationships: List[Relationship]) -> List[Dict[str, Any]]:
-        """Detect contradictions in relationships using LLM"""
+    async def detect_relationship_contradictions_with_context(
+        self, 
+        relationships: List[Relationship], 
+        context_info: Dict[str, Any] = None
+    ) -> List[Dict[str, Any]]:
+        """Detect contradictions in relationships using enhanced LLM analysis with context"""
         try:
             if len(relationships) < 2:
                 return []
@@ -53,7 +57,7 @@ class ContradictionDetector:
                 if len(pair_relationships) < 2:
                     continue
                 
-                # Prepare relationships for LLM analysis
+                # Prepare relationships for enhanced LLM analysis
                 relationships_list = []
                 for rel in pair_relationships:
                     relationships_list.append({
@@ -63,26 +67,38 @@ class ContradictionDetector:
                         "relationship_type": rel.relationship_type,
                         "description": rel.description,
                         "relationship_strength": rel.relationship_strength,
-                        "paper_ids": rel.paper_ids
+                        "paper_ids": rel.paper_ids,
+                        "section_ids": rel.section_ids,
+                        "frequency": getattr(rel, 'frequency', 1)
                     })
                 
-                # Use LLM to detect contradictions
+                # Prepare context information
+                context_data = context_info or {}
+                
+                # Use enhanced LLM to detect contradictions
                 relationship_chain = self.prompt | self.llm | self.parser
                 result = await relationship_chain.ainvoke({
-                    "relationships_list": json.dumps(relationships_list, indent=2)
+                    "relationships_list": json.dumps(relationships_list, indent=2),
+                    "context_info": json.dumps(context_data, indent=2)
                 })
                 
-                if "contradictions" in result and result["contradictions_found"]:
+                if "contradictions" in result and result.get("contradictions_found", False):
                     for contradiction in result["contradictions"]:
                         contradiction["entity_pair"] = entity_pair
+                        contradiction["contradiction_id"] = f"contradiction_{len(contradictions) + 1}"
                         contradictions.append(contradiction)
             
-            logger.info(f"Detected {len(contradictions)} contradictions")
+            logger.info(f"Detected {len(contradictions)} contradictions with enhanced analysis")
             return contradictions
             
         except Exception as e:
             logger.error(f"Error detecting relationship contradictions: {str(e)}")
             return []
+    
+    # Backward compatibility method
+    async def detect_relationship_contradictions(self, relationships: List[Relationship]) -> List[Dict[str, Any]]:
+        """Detect contradictions in relationships using LLM (backward compatibility)"""
+        return await self.detect_relationship_contradictions_with_context(relationships, None)
     
     async def analyze_evidence_strength(self, relationship: Relationship) -> float:
         """Analyze the strength of evidence for a relationship"""
@@ -183,8 +199,13 @@ class ContradictionDetector:
             logger.error(f"Error resolving contradictions: {str(e)}")
             return []
     
-    async def process_contradiction_detection(self, new_relationships: List[Relationship]) -> Dict[str, Any]:
-        """Process contradiction detection for a list of new relationships"""
+    async def process_contradiction_detection_with_resolver(
+        self, 
+        new_relationships: List[Relationship], 
+        context_info: Dict[str, Any] = None,
+        contradiction_resolver = None
+    ) -> Dict[str, Any]:
+        """Process contradiction detection with enhanced resolver integration"""
         try:
             detection_results = {
                 "relationships_analyzed": len(new_relationships),
@@ -194,21 +215,35 @@ class ContradictionDetector:
                 "errors": []
             }
             
-            # Detect contradictions
-            contradictions = await self.detect_relationship_contradictions(new_relationships)
+            # Detect contradictions with enhanced analysis
+            contradictions = await self.detect_relationship_contradictions_with_context(
+                new_relationships, 
+                context_info
+            )
             detection_results["contradictions"] = contradictions
             detection_results["contradictions_found"] = len(contradictions)
             
-            # Resolve contradictions
-            if contradictions:
+            # Resolve contradictions using enhanced resolver if available
+            if contradictions and contradiction_resolver:
+                try:
+                    resolution_results = await contradiction_resolver.resolve_contradictions(contradictions)
+                    detection_results["resolutions"] = resolution_results.get("resolutions", [])
+                    detection_results["resolution_summary"] = resolution_results.get("summary", {})
+                except Exception as e:
+                    logger.error(f"Error in enhanced contradiction resolution: {str(e)}")
+                    # Fallback to basic resolution
+                    resolutions = await self.resolve_contradictions(contradictions)
+                    detection_results["resolutions"] = resolutions
+            elif contradictions:
+                # Use basic resolution if no enhanced resolver
                 resolutions = await self.resolve_contradictions(contradictions)
                 detection_results["resolutions"] = resolutions
             
-            logger.info(f"Contradiction detection complete: {len(contradictions)} contradictions found")
+            logger.info(f"Enhanced contradiction detection complete: {len(contradictions)} contradictions found")
             return detection_results
             
         except Exception as e:
-            logger.error(f"Error in contradiction detection: {str(e)}")
+            logger.error(f"Error in enhanced contradiction detection: {str(e)}")
             return {
                 "relationships_analyzed": 0,
                 "contradictions_found": 0,
@@ -216,3 +251,8 @@ class ContradictionDetector:
                 "resolutions": [],
                 "errors": [str(e)]
             }
+    
+    # Backward compatibility method
+    async def process_contradiction_detection(self, new_relationships: List[Relationship]) -> Dict[str, Any]:
+        """Process contradiction detection for a list of new relationships (backward compatibility)"""
+        return await self.process_contradiction_detection_with_resolver(new_relationships, None, None)
