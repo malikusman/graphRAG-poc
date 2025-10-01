@@ -96,8 +96,32 @@ class EntityCanonicalizer:
         entity: Entity, 
         existing_entities: List[Entity] = None
     ) -> Dict[str, Any]:
-        """Calculate similarity between entities using enhanced LLM analysis"""
+        """
+        Calculate similarity between entities using enhanced LLM analysis
+        
+        Args:
+            entity: The primary entity to analyze
+            existing_entities: List of entities to compare against (typically similar entities found in database)
+            
+        Returns:
+            Dict containing similarity analysis results with confidence scores and reasoning
+        """
         try:
+            # Validation: Ensure we have entities to compare against
+            if not existing_entities:
+                logger.warning(f"No existing entities provided for comparison with {entity.entity_name}")
+                return {
+                    "analysis": {
+                        "should_merge": False,
+                        "confidence": 0.0,
+                        "reasoning": "No entities provided for comparison",
+                        "evidence_types": [],
+                        "stable_identifiers_found": []
+                    },
+                    "canonical_entity": None,
+                    "merge_operations": []
+                }
+            
             # Prepare entities for comparison
             entities_list = [{
                 "entity_name": entity.entity_name,
@@ -308,17 +332,24 @@ class EntityCanonicalizer:
                     for similar_entity in similar_entities:
                         analysis_result = await self.calculate_entity_similarity_with_context(
                             entity, 
-                            existing_entities
+                            [similar_entity]  # Pass the specific similar entity to compare with
                         )
                         
                         if "analysis" in analysis_result:
                             confidence = analysis_result["analysis"].get("confidence", 0.0)
+                            logger.info(f"Similarity analysis for {entity.entity_name} vs {similar_entity.entity_name}: confidence={confidence}, best_similarity={best_similarity}")
                             if confidence > best_similarity and confidence > 0.8:
                                 best_similarity = confidence
                                 best_match = similar_entity
                                 best_analysis = analysis_result
+                                logger.info(f"New best match: {best_match.entity_name} with confidence {best_similarity}")
+                        else:
+                            logger.warning(f"No analysis in result for {entity.entity_name} vs {similar_entity.entity_name}")
+                    
+                    logger.info(f"Final check for {entity.entity_name}: best_match={best_match.entity_name if best_match else None}, best_analysis={'Present' if best_analysis else None}, best_similarity={best_similarity}")
                     
                     if best_match and best_analysis:
+                        logger.info(f"Attempting merge for {entity.entity_name} with {best_match.entity_name}")
                         # Merge entities using enhanced analysis
                         entities_to_merge = [entity, best_match]
                         canonical_entity = await self.merge_entities_with_enhanced_analysis(
@@ -327,6 +358,7 @@ class EntityCanonicalizer:
                         )
                         
                         if canonical_entity:
+                            logger.info(f"Merge successful for {entity.entity_name} -> {canonical_entity.entity_name}")
                             canonicalization_results["canonical_entities"].append(canonical_entity.model_dump())
                             canonicalization_results["merges_performed"] += 1
                             
@@ -346,8 +378,10 @@ class EntityCanonicalizer:
                             processed_entity_ids.add(entity.entity_name)
                             processed_entity_ids.add(best_match.entity_name)
                         else:
+                            logger.warning(f"Merge failed for {entity.entity_name} - canonical_entity is None")
                             canonicalization_results["canonical_entities"].append(entity.model_dump())
                     else:
+                        logger.info(f"No merge for {entity.entity_name} - best_match or best_analysis is None")
                         canonicalization_results["canonical_entities"].append(entity.model_dump())
                 else:
                     canonicalization_results["canonical_entities"].append(entity.model_dump())
