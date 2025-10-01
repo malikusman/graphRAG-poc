@@ -75,11 +75,33 @@ class ContradictionDetector:
                 # Prepare context information
                 context_data = context_info or {}
                 
+                # Extract required variables for the prompt
+                paper_sources = []
+                publication_years = []
+                section_types = []
+                
+                for rel in relationships_list:
+                    # Extract paper sources (use paper_ids as sources for now)
+                    paper_sources.extend(rel.get("paper_ids", []))
+                    
+                    # Extract section types (use section_ids as types for now)
+                    section_types.extend(rel.get("section_ids", []))
+                    
+                    # For publication years, we'll use a default since we don't have this data
+                    publication_years.append("2023")  # Default year
+                
+                # Remove duplicates
+                paper_sources = list(set(paper_sources))
+                section_types = list(set(section_types))
+                publication_years = list(set(publication_years))
+                
                 # Use enhanced LLM to detect contradictions
                 relationship_chain = self.prompt | self.llm | self.parser
                 result = await relationship_chain.ainvoke({
                     "relationships_list": json.dumps(relationships_list, indent=2),
-                    "context_info": json.dumps(context_data, indent=2)
+                    "paper_sources": json.dumps(paper_sources, indent=2),
+                    "publication_years": json.dumps(publication_years, indent=2),
+                    "section_types": json.dumps(section_types, indent=2)
                 })
                 
                 if "contradictions" in result and result.get("contradictions_found", False):

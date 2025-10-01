@@ -182,7 +182,7 @@ class ContradictionResolver:
             logger.error(f"Error in consensus-based resolution: {str(e)}")
             return {"resolution": "error", "confidence": 0.0}
     
-    def resolve_context_dependent(self, contradiction: Dict[str, Any]) -> Dict[str, Any]:
+    async def resolve_context_dependent(self, contradiction: Dict[str, Any]) -> Dict[str, Any]:
         """Resolve contradiction based on context analysis"""
         try:
             relationships = contradiction.get("relationships", [])
