@@ -82,7 +82,7 @@ class ContradictionResolver:
     def determine_resolution_strategy(self, contradiction: Dict[str, Any]) -> str:
         """Determine the best resolution strategy for a contradiction"""
         try:
-            relationships = contradiction.get("relationships", [])
+            relationships = contradiction.get("contradicting_relationships", [])
             if len(relationships) < 2:
                 return "insufficient_data"
             
@@ -110,7 +110,7 @@ class ContradictionResolver:
     def resolve_evidence_based(self, contradiction: Dict[str, Any]) -> Dict[str, Any]:
         """Resolve contradiction based on evidence strength"""
         try:
-            relationships = contradiction.get("relationships", [])
+            relationships = contradiction.get("contradicting_relationships", [])
             if len(relationships) < 2:
                 return {"resolution": "insufficient_data", "confidence": 0.0}
             
@@ -142,7 +142,7 @@ class ContradictionResolver:
     def resolve_consensus_based(self, contradiction: Dict[str, Any]) -> Dict[str, Any]:
         """Resolve contradiction based on consensus and frequency"""
         try:
-            relationships = contradiction.get("relationships", [])
+            relationships = contradiction.get("contradicting_relationships", [])
             if len(relationships) < 2:
                 return {"resolution": "insufficient_data", "confidence": 0.0}
             
@@ -185,7 +185,7 @@ class ContradictionResolver:
     async def resolve_context_dependent(self, contradiction: Dict[str, Any]) -> Dict[str, Any]:
         """Resolve contradiction based on context analysis"""
         try:
-            relationships = contradiction.get("relationships", [])
+            relationships = contradiction.get("contradicting_relationships", [])
             if len(relationships) < 2:
                 return {"resolution": "insufficient_data", "confidence": 0.0}
             
@@ -225,7 +225,7 @@ class ContradictionResolver:
                 "review_notes": f"Contradiction type: {contradiction.get('contradiction_type', 'unknown')}, "
                                f"Severity: {contradiction.get('severity', 'medium')}, "
                                f"Relationships: {len(contradiction.get('relationships', []))}",
-                "relationships": contradiction.get("relationships", [])
+                "relationships": contradiction.get("contradicting_relationships", [])
             }
             
         except Exception as e:
