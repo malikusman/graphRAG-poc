@@ -271,8 +271,8 @@ class GraphRAGPipeline:
                 "relationship_strength": noisy_or_strength,
                 "description": combined_description,
                 "document_id": state["document_id"],
-                "section_ids": [rel["section_id"] for rel in relationships],
-                "provenance": [rel["provenance"] for rel in relationships]
+                "section_ids": [section_id for rel in relationships for section_id in rel["section_ids"]],
+                "paper_ids": [paper_id for rel in relationships for paper_id in rel["paper_ids"]]
             }
             
             doc_relationships.append(merged_rel)
