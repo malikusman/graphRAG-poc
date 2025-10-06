@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.database.models import initialize_database
-from app.api import documents
+from app.api import documents, queries
 
 # Configure logging
 logging.basicConfig(
@@ -45,6 +45,7 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
+app.include_router(queries.router, prefix="/api/v1/queries", tags=["queries"])
 
 
 @app.get("/")

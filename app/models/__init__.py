@@ -30,6 +30,14 @@ from .relationships import (
     RelationshipResponse,
 )
 
+# Query models
+from .query_models import (
+    QuerySource,
+    GraphPath,
+    QueryResponse,
+    QueryResponseDict,
+)
+
 __all__ = [
     # Document models
     "DocumentStatus",
@@ -50,4 +58,10 @@ __all__ = [
     "RelationshipType",
     "Relationship",
     "RelationshipResponse",
+    
+    # Query models
+    "QuerySource",
+    "GraphPath",
+    "QueryResponse",
+    "QueryResponseDict",
 ]
