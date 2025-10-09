@@ -1,14 +1,24 @@
 """
 Retrieval service for GraphRAG operations
+
+This service orchestrates the query processing pipeline:
+1. Analyzes the query to understand intent and complexity
+2. Selects appropriate retrieval strategy (Vector, Graph, or Hybrid)
+3. Executes the strategy to retrieve relevant sources
+4. Generates a response with answer, sources, and metadata
 """
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import time
+import logging
 
 from app.core.database import AsyncIOMotorDatabase
 from app.models import QueryResponse, QuerySource, GraphPath
-from app.services.query_analysis_service import QueryAnalysisService
+from app.services.query_analysis_service import QueryAnalysisService, RetrievalStrategy
+from app.services.retrieval_strategies import VectorFirstStrategy
+
+logger = logging.getLogger(__name__)
 
 
 class RetrievalService:
@@ -23,6 +33,17 @@ class RetrievalService:
         
         # Initialize Query Analysis Service
         self.query_analyzer = QueryAnalysisService()
+        
+        # Initialize retrieval strategies
+        self.strategies = {
+            RetrievalStrategy.VECTOR_FIRST: VectorFirstStrategy(db),
+            # Future strategies:
+            # RetrievalStrategy.GRAPH_FIRST: GraphFirstStrategy(db),
+            # RetrievalStrategy.HYBRID: HybridStrategy(db),
+        }
+        
+        logger.info("RetrievalService initialized with strategies: " + 
+                   ", ".join([s.value for s in self.strategies.keys()]))
     
     async def process_query(
         self,
@@ -31,106 +52,80 @@ class RetrievalService:
         include_graph: bool = True,
         max_hops: int = 3
     ) -> QueryResponse:
-        """Process a GraphRAG query using Query Analysis Service"""
+        """
+        Process a GraphRAG query using intelligent strategy selection.
+        
+        Process:
+        1. Analyze query (intent, complexity, entities, recommended strategy)
+        2. Select and execute retrieval strategy
+        3. Generate answer from retrieved sources
+        4. Return complete QueryResponse
+        
+        Args:
+            query: User's query text
+            max_results: Maximum number of sources to return
+            include_graph: Whether to include graph paths (for graph-based strategies)
+            max_hops: Maximum hops for graph traversal (for graph-based strategies)
+        
+        Returns:
+            QueryResponse with answer, sources, graph paths, and metadata
+        """
         start_time = time.time()
         
         try:
-            # Step 1: Analyze the query using our Query Analysis Service
+            logger.info(f"Processing query: '{query[:50]}...'")
+            
+            # Step 1: Analyze the query
             analysis = await self.query_analyzer.analyze_query(query)
             
-            # Step 2: For now, create a basic response based on analysis
-            # In future steps, we'll implement the actual retrieval strategies
+            logger.info(f"Query analysis: intent={analysis.intent.value}, "
+                       f"complexity={analysis.complexity.value}, "
+                       f"recommended_strategy={analysis.recommended_strategy.value}")
             
-            # Create a sample source based on query analysis
-            sample_sources = []
-            if analysis.entities:
-                # If entities were found, create a source mentioning them
-                entity_names = [entity.name for entity in analysis.entities]
-                sample_sources = [
-                    QuerySource(
-                        document_id="sample_doc_1",
-                        document_title=f"Research on {', '.join(entity_names[:2])}",
-                        section_id="sample_sec_1",
-                        section_type="abstract",
-                        content=f"This document discusses {', '.join(entity_names[:2])} and their applications in scientific research.",
-                        relevance_score=0.85,
-                        doi="10.1000/sample",
-                        metadata={
-                            "analysis_intent": analysis.intent.value,
-                            "analysis_complexity": analysis.complexity.value,
-                            "recommended_strategy": analysis.recommended_strategy.value,
-                            "confidence": analysis.confidence
-                        }
-                    )
-                ]
-            else:
-                # Fallback source for queries without specific entities
-                sample_sources = [
-                    QuerySource(
-                        document_id="sample_doc_1",
-                        document_title="General Research Document",
-                        section_id="sample_sec_1",
-                        section_type="abstract",
-                        content="This is a general research document that may contain information relevant to your query.",
-                        relevance_score=0.70,
-                        doi="10.1000/sample",
-                        metadata={
-                            "analysis_intent": analysis.intent.value,
-                            "analysis_complexity": analysis.complexity.value,
-                            "recommended_strategy": analysis.recommended_strategy.value,
-                            "confidence": analysis.confidence
-                        }
-                    )
-                ]
+            # Step 2: Select and execute retrieval strategy
+            sources = await self._execute_strategy(
+                query=query,
+                analysis=analysis,
+                max_results=max_results
+            )
             
-            # Create graph paths if requested
+            # Step 3: Generate graph paths (if requested and strategy supports it)
             graph_paths = []
-            if include_graph and analysis.entities:
-                # Create a simple path based on found entities
-                entity_names = [entity.name for entity in analysis.entities]
-                if len(entity_names) >= 2:
-                    graph_paths = [
-                        GraphPath(
-                            path=entity_names[:3],  # Use first 3 entities
-                            entities=[{"name": name, "confidence": 0.8} for name in entity_names[:3]],
-                            relationships=[{"type": "related_to", "strength": 0.7}],
-                            total_strength=0.75,
-                            metadata={
-                                "strategy_used": analysis.recommended_strategy.value,
-                                "analysis_confidence": analysis.confidence
-                            }
-                        )
-                    ]
+            if include_graph and analysis.recommended_strategy == RetrievalStrategy.GRAPH_FIRST:
+                # Future: Implement graph path generation
+                # For now, graph paths are only generated by graph-based strategies
+                pass
+            
+            # Step 4: Generate answer from sources
+            answer = await self._generate_answer(query, sources, analysis)
             
             processing_time = time.time() - start_time
             
-            # Generate a response based on analysis
-            if analysis.entities:
-                entity_names = [entity.name for entity in analysis.entities]
-                answer = f"Based on your {analysis.intent.value} query about {', '.join(entity_names[:2])}, I found relevant information. "
-                answer += f"This appears to be a {analysis.complexity.value} query that would benefit from {analysis.recommended_strategy.value} retrieval strategy."
-            else:
-                answer = f"Based on your {analysis.intent.value} query, I found some relevant information. "
-                answer += f"This appears to be a {analysis.complexity.value} query that would benefit from {analysis.recommended_strategy.value} retrieval strategy."
-            
-            answer += " (Note: This is using our Query Analysis Service. Full retrieval strategies will be implemented in the next steps.)"
-            
-            return QueryResponse(
+            # Step 5: Build response
+            response = QueryResponse(
                 query=query,
                 answer=answer,
-                sources=sample_sources,
+                sources=sources,
                 graph_paths=graph_paths,
                 processing_time=processing_time,
-                confidence=analysis.confidence,
+                confidence=sources[0].metadata.get("strategy_confidence", analysis.confidence) if sources else 0.0,
                 metadata={
                     "analysis_intent": analysis.intent.value,
                     "analysis_complexity": analysis.complexity.value,
                     "recommended_strategy": analysis.recommended_strategy.value,
-                    "entities_found": [{"name": e.name, "type": e.type, "confidence": e.confidence} for e in analysis.entities]
+                    "strategy_used": sources[0].metadata.get("strategy_used", "unknown") if sources else "none",
+                    "entities_found": [{"name": e.name, "type": e.type, "confidence": e.confidence} for e in analysis.entities],
+                    "sources_count": len(sources)
                 }
             )
             
+            logger.info(f"Query processed successfully: {len(sources)} sources, "
+                       f"{processing_time*1000:.2f}ms, confidence={response.confidence:.2f}")
+            
+            return response
+            
         except Exception as e:
+            logger.error(f"Error processing query: {str(e)}", exc_info=True)
             processing_time = time.time() - start_time
             
             # Return error response
@@ -143,6 +138,116 @@ class RetrievalService:
                 confidence=0.0,
                 metadata={"error": str(e)}
             )
+    
+    async def _execute_strategy(
+        self,
+        query: str,
+        analysis: Any,
+        max_results: int
+    ) -> List[QuerySource]:
+        """
+        Select and execute the appropriate retrieval strategy.
+        
+        Args:
+            query: User's query text
+            analysis: QueryAnalysis result
+            max_results: Maximum number of sources to return
+        
+        Returns:
+            List of QuerySource objects
+        """
+        try:
+            # Get the recommended strategy
+            recommended_strategy = analysis.recommended_strategy
+            
+            # Check if strategy is available
+            if recommended_strategy not in self.strategies:
+                logger.warning(f"Strategy {recommended_strategy.value} not available, "
+                             f"falling back to VECTOR_FIRST")
+                recommended_strategy = RetrievalStrategy.VECTOR_FIRST
+            
+            # Execute the strategy
+            strategy = self.strategies[recommended_strategy]
+            logger.info(f"Executing {strategy.get_strategy_name()}")
+            
+            sources = await strategy.retrieve(
+                query=query,
+                analysis=analysis,
+                max_results=max_results
+            )
+            
+            return sources
+            
+        except Exception as e:
+            logger.error(f"Error executing strategy: {str(e)}", exc_info=True)
+            return []
+    
+    async def _generate_answer(
+        self,
+        query: str,
+        sources: List[QuerySource],
+        analysis: Any
+    ) -> str:
+        """
+        Generate an answer based on the retrieved sources.
+        
+        For now, creates a simple descriptive answer.
+        Future: Could use LLM to synthesize answer from source content.
+        
+        Args:
+            query: Original query
+            sources: Retrieved sources
+            analysis: Query analysis
+        
+        Returns:
+            Generated answer text
+        """
+        try:
+            if not sources:
+                return (f"I couldn't find specific information about your query. "
+                       f"This may be because the knowledge base doesn't contain relevant documents yet, "
+                       f"or the query is too specific.")
+            
+            # Build answer from source information
+            entity_names = [e.name for e in analysis.entities] if analysis.entities else []
+            
+            answer_parts = []
+            
+            # Introduction
+            if entity_names:
+                answer_parts.append(
+                    f"Based on your {analysis.intent.value.lower()} query about {', '.join(entity_names[:2])}, "
+                    f"I found {len(sources)} relevant source(s)."
+                )
+            else:
+                answer_parts.append(
+                    f"Based on your query, I found {len(sources)} relevant source(s)."
+                )
+            
+            # Top source summary
+            top_source = sources[0]
+            answer_parts.append(
+                f"\n\nThe most relevant source (relevance: {top_source.relevance_score:.0%}) is from "
+                f"\"{top_source.document_title}\" which discusses: {top_source.content[:200]}..."
+            )
+            
+            # Additional sources note
+            if len(sources) > 1:
+                answer_parts.append(
+                    f"\n\nAdditional {len(sources)-1} source(s) are also available with detailed information."
+                )
+            
+            # Strategy used
+            strategy_used = top_source.metadata.get("strategy_used", "unknown")
+            answer_parts.append(
+                f"\n\n(Retrieved using {strategy_used} strategy)"
+            )
+            
+            return " ".join(answer_parts)
+            
+        except Exception as e:
+            logger.error(f"Error generating answer: {str(e)}")
+            return "I found relevant sources but encountered an error generating the answer."
     
     async def list_entities(
         self,
