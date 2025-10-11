@@ -325,3 +325,5 @@ def validate_embedding_dimensions(
         logger.error(f"Error validating embedding: {str(e)}")
         return False
 
+
+

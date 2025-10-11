@@ -610,3 +610,4 @@ class GraphFirstStrategy(BaseRetrievalStrategy):
     def get_strategy_name(self) -> str:
         """Returns the name of the strategy"""
         return "GraphFirstStrategy"
+
