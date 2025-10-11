@@ -16,7 +16,11 @@ import logging
 from app.core.database import AsyncIOMotorDatabase
 from app.models import QueryResponse, QuerySource, GraphPath
 from app.services.query_analysis_service import QueryAnalysisService, RetrievalStrategy
-from app.services.retrieval_strategies import VectorFirstStrategy
+from app.services.retrieval_strategies import (
+    VectorFirstStrategy,
+    GraphFirstStrategy,
+    HybridStrategy
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +41,8 @@ class RetrievalService:
         # Initialize retrieval strategies
         self.strategies = {
             RetrievalStrategy.VECTOR_FIRST: VectorFirstStrategy(db),
-            # Future strategies:
-            # RetrievalStrategy.GRAPH_FIRST: GraphFirstStrategy(db),
-            # RetrievalStrategy.HYBRID: HybridStrategy(db),
+            RetrievalStrategy.GRAPH_FIRST: GraphFirstStrategy(db),
+            RetrievalStrategy.HYBRID: HybridStrategy(db),
         }
         
         logger.info("RetrievalService initialized with strategies: " + 
