@@ -177,6 +177,7 @@ def process_document(document_id: str):
             relationships_stored = 0
             global_entities_processed = 0
             global_relationships_processed = 0
+            global_processing_results = {}
         
         # Step 7: Finalization (100%)
         logger.info("Step 7: Finalizing...")
