@@ -123,20 +123,27 @@ def process_document(document_id: str):
             entities_stored = 0
             for entity_data in graphrag_result.get("final_entities", []):
                 try:
-                    from app.models.entities import Entity, EntityType, EntityCategory
-                    entity = Entity(
-                        entity_name=entity_data["entity_name"],
-                        entity_type=EntityType(entity_data["entity_type"]),
-                        entity_category=EntityCategory(entity_data["entity_category"]),
-                        entity_description=entity_data.get("entity_description"),
-                        aliases=entity_data.get("aliases", []),
-                        frequency=entity_data.get("frequency", 1),
-                        paper_ids=[document_id],
-                        section_ids=entity_data.get("section_ids", [])
-                    )
+                    # Store entity directly in MongoDB using sync database
+                    entity_doc = {
+                        "entity_name": entity_data["entity_name"],
+                        "entity_type": entity_data["entity_type"],
+                        "entity_category": entity_data["entity_category"],
+                        "entity_description": entity_data.get("entity_description"),
+                        "aliases": entity_data.get("aliases", []),
+                        "frequency": entity_data.get("frequency", 1),
+                        "paper_ids": [document_id],
+                        "section_ids": entity_data.get("section_ids", [])
+                    }
                     
-                    # Store entity using async wrapper
-                    _store_entity_async(entity)
+                    # Upsert entity (update if exists, insert if not)
+                    db.entities.update_one(
+                        {
+                            "entity_name": entity_doc["entity_name"],
+                            "entity_type": entity_doc["entity_type"]
+                        },
+                        {"$set": entity_doc},
+                        upsert=True
+                    )
                     entities_stored += 1
                     
                 except Exception as e:
@@ -146,19 +153,27 @@ def process_document(document_id: str):
             relationships_stored = 0
             for rel_data in graphrag_result.get("final_relationships", []):
                 try:
-                    from app.models.relationships import Relationship, RelationshipType
-                    relationship = Relationship(
-                        source_entity=rel_data["source_entity"],
-                        target_entity=rel_data["target_entity"],
-                        relationship_type=RelationshipType(rel_data["relationship_type"]),
-                        relationship_strength=rel_data["relationship_strength"],
-                        description=rel_data.get("description"),
-                        paper_ids=[document_id],
-                        section_ids=rel_data.get("section_ids", [])
-                    )
+                    # Store relationship directly in MongoDB using sync database
+                    relationship_doc = {
+                        "source_entity": rel_data["source_entity"],
+                        "target_entity": rel_data["target_entity"],
+                        "relationship_type": rel_data["relationship_type"],
+                        "relationship_strength": rel_data["relationship_strength"],
+                        "description": rel_data.get("description"),
+                        "paper_ids": [document_id],
+                        "section_ids": rel_data.get("section_ids", [])
+                    }
                     
-                    # Store relationship using async wrapper
-                    _store_relationship_async(relationship)
+                    # Upsert relationship (update if exists, insert if not)
+                    db.relationships.update_one(
+                        {
+                            "source_entity": relationship_doc["source_entity"],
+                            "target_entity": relationship_doc["target_entity"],
+                            "relationship_type": relationship_doc["relationship_type"]
+                        },
+                        {"$set": relationship_doc},
+                        upsert=True
+                    )
                     relationships_stored += 1
                     
                 except Exception as e:
@@ -256,44 +271,6 @@ def process_document(document_id: str):
 
         logger.error(f"Task failed: {str(e)}")
         raise
-
-
-def _store_entity_async(entity):
-    """Helper function to store entity asynchronously in a thread"""
-    import concurrent.futures
-    import asyncio
-    
-    def run_async_in_thread():
-        new_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(new_loop)
-        try:
-            from app.database.models import EntityCollection
-            return new_loop.run_until_complete(EntityCollection.insert_entity(entity))
-        finally:
-            new_loop.close()
-    
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(run_async_in_thread)
-        future.result()
-
-
-def _store_relationship_async(relationship):
-    """Helper function to store relationship asynchronously in a thread"""
-    import concurrent.futures
-    import asyncio
-    
-    def run_async_in_thread():
-        new_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(new_loop)
-        try:
-            from app.database.models import RelationshipCollection
-            return new_loop.run_until_complete(RelationshipCollection.insert_relationship(relationship))
-        finally:
-            new_loop.close()
-    
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(run_async_in_thread)
-        future.result()
 
 
 @celery_app.task
