@@ -263,6 +263,26 @@ class GraphRAGPipeline:
             descriptions = [rel["description"] for rel in relationships]
             combined_description = "; ".join(set(descriptions))
             
+            # Collect section_ids and paper_ids from all relationships
+            # Note: extracted relationships have "section_id" (singular) and "document_id"
+            section_ids = []
+            paper_ids = []
+            for rel in relationships:
+                # Handle both singular and plural forms
+                if "section_id" in rel:
+                    section_ids.append(rel["section_id"])
+                elif "section_ids" in rel:
+                    section_ids.extend(rel["section_ids"])
+                
+                if "document_id" in rel:
+                    paper_ids.append(rel["document_id"])
+                elif "paper_ids" in rel:
+                    paper_ids.extend(rel["paper_ids"])
+            
+            # Remove duplicates
+            section_ids = list(set(section_ids))
+            paper_ids = list(set(paper_ids))
+            
             # Create merged relationship
             merged_rel = {
                 "source_entity": source,
@@ -271,8 +291,8 @@ class GraphRAGPipeline:
                 "relationship_strength": noisy_or_strength,
                 "description": combined_description,
                 "document_id": state["document_id"],
-                "section_ids": [section_id for rel in relationships for section_id in rel["section_ids"]],
-                "paper_ids": [paper_id for rel in relationships for paper_id in rel["paper_ids"]]
+                "section_ids": section_ids,
+                "paper_ids": paper_ids
             }
             
             doc_relationships.append(merged_rel)
