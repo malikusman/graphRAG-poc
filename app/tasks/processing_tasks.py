@@ -62,8 +62,8 @@ def process_document(document_id: str):
         sections_cursor = db.sections.find({"document_id": document_id})
         sections = []
         for section in sections_cursor:
-            # Convert ObjectId to string for JSON serialization
-            section["_id"] = str(section["_id"])
+            # Keep original ObjectId for database operations
+            section["_id_str"] = str(section["_id"])
             sections.append(section)
         
         logger.info(f"Processing {len(sections)} sections for document {document_id}")
@@ -81,9 +81,9 @@ def process_document(document_id: str):
                 )
                 
                 if embedding:
-                    # Update section with embedding
+                    # Update section with embedding (use ObjectId, not string)
                     db.sections.update_one(
-                        {"_id": section["_id"]},
+                        {"_id": section["_id"]},  # Use original ObjectId
                         {"$set": {"embedding": embedding}}
                     )
                     logger.debug(f"Generated embedding for section {section['_id']}")
@@ -92,6 +92,11 @@ def process_document(document_id: str):
                     
             except Exception as e:
                 logger.error(f"Error generating embedding for section {section['_id']}: {str(e)}")
+            
+        # Convert ObjectIds to strings for JSON serialization (after embeddings are saved)
+        for section in sections:
+            section["_id"] = section["_id_str"]
+            del section["_id_str"]
         
         # Step 4: Enhanced GraphRAG processing with global graph integration (80%)
         logger.info("Step 4: Running enhanced GraphRAG pipeline with global graph integration...")
