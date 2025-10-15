@@ -1,0 +1,22 @@
+Title: Amyloid Beta and Tau Protein Interactions in Alzheimer's Disease Pathogenesis
+
+Abstract:
+Alzheimer's disease (AD) is characterized by the accumulation of amyloid beta (Aβ) plaques and neurofibrillary tangles composed of hyperphosphorylated tau protein. This study investigates the molecular mechanisms underlying the interaction between Aβ and tau in neuronal degeneration.
+
+Introduction:
+Alzheimer's disease affects over 50 million people worldwide and is the leading cause of dementia. The disease is characterized by two main pathological hallmarks: extracellular amyloid beta plaques and intracellular neurofibrillary tangles containing hyperphosphorylated tau protein.
+
+Methods:
+We used primary neuronal cultures from transgenic mice expressing human amyloid precursor protein (APP) and tau. Immunofluorescence staining was performed to visualize Aβ and tau colocalization. Western blot analysis quantified protein expression levels.
+
+Results:
+Our findings demonstrate that Aβ oligomers directly interact with tau protein, leading to increased phosphorylation at multiple sites including Ser202, Thr205, and Ser396. This interaction triggers a cascade of events including mitochondrial dysfunction, oxidative stress, and synaptic loss.
+
+The presence of Aβ42, the most toxic form of amyloid beta, significantly increased tau phosphorylation by 3.2-fold compared to controls. Additionally, we observed that tau phosphorylation promotes Aβ aggregation, creating a positive feedback loop that accelerates disease progression.
+
+Discussion:
+These results suggest that Aβ and tau work synergistically to drive neurodegeneration in Alzheimer's disease. The reciprocal relationship between these proteins may explain why therapeutic interventions targeting only one pathway have shown limited efficacy.
+
+Conclusion:
+Understanding the Aβ-tau interaction is crucial for developing effective treatments for Alzheimer's disease. Future therapeutic strategies should target both pathways simultaneously to prevent disease progression.
+
