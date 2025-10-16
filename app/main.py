@@ -3,8 +3,28 @@ SageWrite GraphRAG Application
 Main FastAPI application entry point
 """
 
+import logging
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.database import connect_to_mongo, close_mongo_connection
+from app.database.models import initialize_database
+from app.api import documents, queries
+from app.api.endpoints import api_integration
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# Set specific logger levels
+logging.getLogger("app.services").setLevel(logging.INFO)
+logging.getLogger("app.tasks").setLevel(logging.INFO)
+logging.getLogger("app.pipelines").setLevel(logging.INFO)
 
 # Create FastAPI application
 app = FastAPI(
@@ -24,6 +44,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include API routers
+app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
+app.include_router(queries.router, prefix="/api/v1/queries", tags=["queries"])
+app.include_router(api_integration.router, prefix="/api/v1", tags=["API Integration"])
+
 
 @app.get("/")
 async def root():
@@ -40,6 +65,19 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "message": "SageWrite GraphRAG API is running"}
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    await connect_to_mongo()
+    await initialize_database()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database connection on shutdown"""
+    await close_mongo_connection()
 
 
 if __name__ == "__main__":

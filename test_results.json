@@ -1,0 +1,67 @@
+{
+  "test_duration": 0.15685701370239258,
+  "documents_processed": 6,
+  "overall_success": false,
+  "results": {
+    "canonicalization": {
+      "total_entities": 0,
+      "expected_merges": {
+        "CRISPR-Cas9": [
+          "CRISPR-Cas9",
+          "Cas9",
+          "CRISPR"
+        ],
+        "TP53": [
+          "TP53",
+          "p53"
+        ],
+        "Metformin": [
+          "Metformin",
+          "1,1-dimethylbiguanide"
+        ]
+      },
+      "actual_merges": {},
+      "canonicalization_success": false,
+      "errors": [
+        "Canonical entity CRISPR-Cas9 not found",
+        "Canonical entity TP53 not found",
+        "Canonical entity Metformin not found"
+      ]
+    },
+    "contradiction_detection": {
+      "total_relationships": 0,
+      "expected_contradictions": [
+        {
+          "source": "TP53",
+          "target": "apoptosis",
+          "contradicting_types": [
+            "increases",
+            "decreases"
+          ]
+        },
+        {
+          "source": "CRISPR-Cas9",
+          "target": "off-target effects",
+          "contradicting_types": [
+            "has",
+            "prevents"
+          ]
+        }
+      ],
+      "detected_contradictions": [],
+      "contradiction_detection_success": true,
+      "errors": [
+        "No contradiction found for TP53 -> apoptosis",
+        "No contradiction found for CRISPR-Cas9 -> off-target effects"
+      ]
+    },
+    "global_consistency": {
+      "total_entities": 0,
+      "total_relationships": 0,
+      "orphaned_entities": [],
+      "inconsistent_relationships": [],
+      "consistency_score": 1.0,
+      "errors": []
+    }
+  }
+}

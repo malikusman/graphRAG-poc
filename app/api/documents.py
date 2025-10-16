@@ -2,40 +2,36 @@
 Document management API endpoints
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List
-import uuid
-from datetime import datetime
 
-from database.connection import get_database
-from database.models import DocumentCreate, DocumentResponse
-from services.document_service import DocumentService
+from app.models import Document, DocumentResponse, DocumentStatus
+from app.services.document_service import DocumentService
 
 router = APIRouter()
 
 
 @router.post("/upload", response_model=DocumentResponse)
-async def upload_document(
-    file: UploadFile = File(...),
-    db=Depends(get_database)
-):
+async def upload_document(file: UploadFile = File(...)):
     """Upload a new document for processing"""
     try:
         # Validate file type
-        if not file.filename.endswith(('.pdf', '.txt', '.docx')):
+        if not file.filename or not file.filename.endswith(('.pdf', '.txt', '.docx')):
             raise HTTPException(
                 status_code=400,
                 detail="Only PDF, TXT, and DOCX files are supported"
             )
         
         # Create document service
-        doc_service = DocumentService(db)
+        doc_service = DocumentService()
         
         # Process the uploaded file
         document = await doc_service.create_document(file)
         
         return document
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -43,15 +39,11 @@ async def upload_document(
         )
 
 
-@router.get("/", response_model=List[DocumentResponse])
-async def list_documents(
-    skip: int = 0,
-    limit: int = 100,
-    db=Depends(get_database)
-):
+@router.get("/", response_model=List[Document])
+async def list_documents(skip: int = 0, limit: int = 100):
     """List all documents"""
     try:
-        doc_service = DocumentService(db)
+        doc_service = DocumentService()
         documents = await doc_service.list_documents(skip=skip, limit=limit)
         return documents
         
@@ -62,14 +54,11 @@ async def list_documents(
         )
 
 
-@router.get("/{document_id}", response_model=DocumentResponse)
-async def get_document(
-    document_id: str,
-    db=Depends(get_database)
-):
+@router.get("/{document_id}", response_model=Document)
+async def get_document(document_id: str):
     """Get a specific document by ID"""
     try:
-        doc_service = DocumentService(db)
+        doc_service = DocumentService()
         document = await doc_service.get_document(document_id)
         
         if not document:
@@ -89,14 +78,37 @@ async def get_document(
         )
 
 
+@router.patch("/{document_id}/status", response_model=Document)
+async def update_document_status(document_id: str, status: DocumentStatus):
+    """Update document status"""
+    try:
+        doc_service = DocumentService()
+        success = await doc_service.update_document_status(document_id, status)
+        
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found"
+            )
+        
+        # Return updated document
+        document = await doc_service.get_document(document_id)
+        return document
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update document status: {str(e)}"
+        )
+
+
 @router.delete("/{document_id}")
-async def delete_document(
-    document_id: str,
-    db=Depends(get_database)
-):
+async def delete_document(document_id: str):
     """Delete a document"""
     try:
-        doc_service = DocumentService(db)
+        doc_service = DocumentService()
         success = await doc_service.delete_document(document_id)
         
         if not success:
@@ -113,5 +125,61 @@ async def delete_document(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete document: {str(e)}"
+        )
+
+
+@router.get("/{document_id}/status")
+async def get_document_status(document_id: str):
+    """Get document processing status and job information"""
+    try:
+        doc_service = DocumentService()
+        document = await doc_service.get_document(document_id)
+
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found"
+            )
+
+        # If document has a job_id, get job status from Celery
+        job_status = None
+        if document.job_id:
+            from app.tasks.celery_app import celery_app
+            job = celery_app.AsyncResult(document.job_id)
+            
+            # Safely extract result, avoiding AsyncResult serialization issues
+            result_data = None
+            if job.state == "SUCCESS" and job.result:
+                try:
+                    # Convert result to JSON-serializable format
+                    import json
+                    result_data = json.loads(json.dumps(job.result, default=str))
+                except (TypeError, ValueError):
+                    # If serialization fails, convert to string representation
+                    result_data = str(job.result)
+            
+            job_status = {
+                "job_id": document.job_id,
+                "state": job.state,
+                "current": job.info.get("current", 0) if job.info else 0,
+                "total": job.info.get("total", 100) if job.info else 100,
+                "status": job.info.get("status", "Unknown") if job.info else "Unknown",
+                "result": result_data,
+                "error": job.info.get("error") if job.state == "FAILURE" else None
+            }
+
+        return {
+            "document_id": document_id,
+            "status": document.status,
+            "title": document.title,
+            "job_status": job_status
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get document status: {str(e)}"
         )
 

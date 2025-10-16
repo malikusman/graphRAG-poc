@@ -21,14 +21,14 @@ class Settings(BaseSettings):
         default="mongodb://admin:password123@localhost:27017/sagewrite?authSource=admin",
         env="MONGODB_URL"
     )
-    MONGODB_DATABASE: str = Field(default="sagewrite", env="MONGODB_DATABASE")
+    MONGODB_DB_NAME: str = Field(default="sagewrite", env="MONGODB_DB_NAME")
     
     # Redis
     REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
     
     # OpenAI
     OPENAI_API_KEY: str = Field(env="OPENAI_API_KEY")
-    OPENAI_MODEL: str = Field(default="gpt-4o-mini", env="OPENAI_MODEL")
+    OPENAI_MODEL: str = Field(default="gpt-5-nano", env="OPENAI_MODEL")
     OPENAI_EMBEDDING_MODEL: str = Field(default="text-embedding-3-small", env="OPENAI_EMBEDDING_MODEL")
     
     # Celery
@@ -43,6 +43,15 @@ class Settings(BaseSettings):
         default=["http://localhost:3000", "http://localhost:8000"],
         env="ALLOWED_ORIGINS"
     )
+    
+    # External API Integration
+    EXTERNAL_API_BASE_URL: str = Field(
+        default="https://writing-api.sagewrite.com",
+        env="EXTERNAL_API_BASE_URL"
+    )
+    EXTERNAL_API_TOKEN: str = Field(default="", env="EXTERNAL_API_TOKEN")
+    EXTERNAL_API_MAX_SECTIONS: int = Field(default=5, env="EXTERNAL_API_MAX_SECTIONS")
+    EXTERNAL_API_MIN_TEXT_LENGTH: int = Field(default=50, env="EXTERNAL_API_MIN_TEXT_LENGTH")
     
     class Config:
         env_file = ".env"

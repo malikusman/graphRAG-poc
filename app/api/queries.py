@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
 from pydantic import BaseModel
 
-from database.connection import get_database
-from services.retrieval_service import RetrievalService
+from app.core.database import get_database
+from app.services.retrieval_service import RetrievalService
 
 router = APIRouter()
 
@@ -46,7 +46,37 @@ async def search_documents(
             max_hops=request.max_hops
         )
         
-        return result
+        # Convert QueryResponse to dict format for API
+        return {
+            "query": result.query,
+            "answer": result.answer,
+            "sources": [
+                {
+                    "document_id": source.document_id,
+                    "document_title": source.document_title,
+                    "section_id": source.section_id,
+                    "section_type": source.section_type,
+                    "content": source.content,
+                    "relevance_score": source.relevance_score,
+                    "doi": source.doi,
+                    "metadata": source.metadata
+                }
+                for source in result.sources
+            ],
+            "graph_paths": [
+                {
+                    "path": path.path,
+                    "entities": path.entities,
+                    "relationships": path.relationships,
+                    "total_strength": path.total_strength,
+                    "metadata": path.metadata
+                }
+                for path in result.graph_paths
+            ],
+            "processing_time": result.processing_time,
+            "confidence": result.confidence,
+            "metadata": result.metadata
+        }
         
     except Exception as e:
         raise HTTPException(
