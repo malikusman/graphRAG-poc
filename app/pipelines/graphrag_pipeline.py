@@ -315,7 +315,7 @@ class GraphRAGPipeline:
                     entity_type=entity_data["entity_type"],
                     entity_category=entity_data["entity_category"],
                     aliases=entity_data.get("aliases", []),
-                    entity_description=entity_data["entity_description"],
+                    entity_description=entity_data.get("description", ""),
                     frequency=entity_data.get("frequency", 1),
                     paper_ids=entity_data.get("paper_ids", []),
                     section_ids=entity_data.get("section_ids", [])

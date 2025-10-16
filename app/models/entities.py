@@ -48,6 +48,9 @@ class EntityType(str, Enum):
     ETHICAL_PRINCIPLE = "ethical_principle"
     TIMEPOINT = "timepoint"
     PERIOD = "period"
+    PUBLICATION = "publication"
+    PLATFORM = "platform"
+    KNOWLEDGE_GRAPH = "knowledge_graph"
     SEASON = "season"
     OTHER = "other"
 

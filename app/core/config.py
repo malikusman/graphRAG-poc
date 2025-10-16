@@ -44,6 +44,15 @@ class Settings(BaseSettings):
         env="ALLOWED_ORIGINS"
     )
     
+    # External API Integration
+    EXTERNAL_API_BASE_URL: str = Field(
+        default="https://writing-api.sagewrite.com",
+        env="EXTERNAL_API_BASE_URL"
+    )
+    EXTERNAL_API_TOKEN: str = Field(default="", env="EXTERNAL_API_TOKEN")
+    EXTERNAL_API_MAX_SECTIONS: int = Field(default=5, env="EXTERNAL_API_MAX_SECTIONS")
+    EXTERNAL_API_MIN_TEXT_LENGTH: int = Field(default=50, env="EXTERNAL_API_MIN_TEXT_LENGTH")
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
