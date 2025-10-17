@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     
     # Database
     MONGODB_URL: str = Field(
-        default="mongodb://admin:password123@localhost:27017/sagewrite?authSource=admin",
+        default="mongodb://localhost:27017/sagewrite",
         env="MONGODB_URL"
     )
     MONGODB_DB_NAME: str = Field(default="sagewrite", env="MONGODB_DB_NAME")
@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = Field(env="OPENAI_API_KEY")
     OPENAI_MODEL: str = Field(default="gpt-5-nano", env="OPENAI_MODEL")
     OPENAI_EMBEDDING_MODEL: str = Field(default="text-embedding-3-small", env="OPENAI_EMBEDDING_MODEL")
+    
+    # Google Gemini (for future migration)
+    GOOGLE_GEMINI_API_KEY: str = Field(default="", env="GOOGLE_GEMINI_API_KEY")
+    GEMINI_MODEL: str = Field(default="gemini-2.0-flash", env="GEMINI_MODEL")
+    GEMINI_EMBEDDING_MODEL: str = Field(default="text-embedding-004", env="GEMINI_EMBEDDING_MODEL")
+    GEMINI_TEMPERATURE: float = Field(default=0.1, env="GEMINI_TEMPERATURE")
     
     # Celery
     CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/0", env="CELERY_BROKER_URL")
