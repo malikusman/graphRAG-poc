@@ -1,0 +1,1188 @@
+{
+  "test_timestamp": "2025-10-17T16:57:28.077771",
+  "duration_seconds": 941.050096,
+  "result": {
+    "success": true,
+    "document_id": "test_doc_comprehensive_001",
+    "entities_extracted": 48,
+    "relationships_extracted": 25,
+    "final_entities": [
+      {
+        "entity_name": "CRISPR-Cas9",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "Cas9",
+          "CRISPR",
+          "CRISPR-Cas9 system"
+        ],
+        "description": "Genome editing method that uses the CRISPR-Cas9 nuclease to introduce targeted genomic modifications. (MeSH: not specified)",
+        "frequency": 3,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001",
+          "section_002",
+          "section_003"
+        ],
+        "provenance": [
+          "CRISPR-Cas9 genome editing has revolutionized cancer research by enabling precise modifications to oncogenes and tumor suppressor genes.",
+          "We employed a comprehensive CRISPR-Cas9 workflow targeting TP53 mutations in HCT116 colorectal cancer cells.",
+          "CRISPR-Cas9-mediated TP53 editing demonstrated remarkable efficacy in HCT116 colorectal cancer cells."
+        ]
+      },
+      {
+        "entity_name": "TP53",
+        "entity_type": "gene",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "p53",
+          "tumor protein p53",
+          "TP53"
+        ],
+        "description": "Tumor suppressor gene encoding the p53 transcription factor, which regulates cell cycle arrest, apoptosis, and genomic stability.",
+        "frequency": 3,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001",
+          "section_002",
+          "section_003"
+        ],
+        "provenance": [
+          "target TP53 mutations in colorectal cancer cell lines",
+          "For sgRNA design, we utilized the CHOPCHOP algorithm to identify optimal targeting sequences within exons 5-8 of the TP53 gene, focusing on regions encoding the DNA-binding domain.",
+          "CRISPR-Cas9-mediated TP53 editing demonstrated remarkable efficacy in HCT116 colorectal cancer cells."
+        ]
+      },
+      {
+        "entity_name": "Colorectal Cancer Cell Lines",
+        "entity_type": "cell_line",
+        "entity_category": "data_and_materials",
+        "aliases": [
+          "CRC cell lines",
+          "colorectal tumor cell lines"
+        ],
+        "description": "In vitro models derived from colorectal cancer used to study TP53 mutations and CRISPR-Cas9 editing.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "This study demonstrates the successful application of CRISPR-Cas9 to target TP53 mutations in colorectal cancer cell lines"
+        ]
+      },
+      {
+        "entity_name": "Colorectal Cancer",
+        "entity_type": "disease",
+        "entity_category": "diseases_and_disorders",
+        "aliases": [
+          "Colorectal carcinoma",
+          "colorectal carcinoma",
+          "CRC"
+        ],
+        "description": "Malignant neoplasm of the colon or rectum; provides the disease context for the cell line used in the study.",
+        "frequency": 2,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001",
+          "section_003"
+        ],
+        "provenance": [
+          "TP53 mutations in colorectal cancer cell lines",
+          "HCT116 colorectal cancer cells."
+        ]
+      },
+      {
+        "entity_name": "Apoptosis",
+        "entity_type": "process",
+        "entity_category": "physiological_processes",
+        "aliases": [
+          "programmed cell death"
+        ],
+        "description": "Regulated process of programmed cell death that eliminates damaged or unwanted cells.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "resulting in significant apoptosis induction"
+        ]
+      },
+      {
+        "entity_name": "Tumor Growth Inhibition",
+        "entity_type": "measurement",
+        "entity_category": "measurements_and_metrics",
+        "aliases": [
+          "tumor growth suppression",
+          "inhibition of tumor growth"
+        ],
+        "description": "Decrease in the rate of tumor growth observed following therapeutic interventions.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "tumor growth inhibition"
+        ]
+      },
+      {
+        "entity_name": "Single-guide RNA",
+        "entity_type": "tool",
+        "entity_category": "technologies_and_tools",
+        "aliases": [
+          "sgRNA",
+          "single-guide RNA"
+        ],
+        "description": "RNA molecule that guides the Cas9 nuclease to a specific genomic sequence for targeted DNA cleavage.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "single-guide RNA (sgRNA) design optimization"
+        ]
+      },
+      {
+        "entity_name": "Delivery Systems for CRISPR Components",
+        "entity_type": "technique",
+        "entity_category": "technologies_and_tools",
+        "aliases": [
+          "delivery systems",
+          "delivery methods for CRISPR"
+        ],
+        "description": "Systems enabling efficient delivery of CRISPR-Cac9 reagents into cells to facilitate genome editing.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "The methodology combines single-guide RNA (sgRNA) design optimization with high-efficiency delivery systems"
+        ]
+      },
+      {
+        "entity_name": "Editing Efficiency",
+        "entity_type": "measurement",
+        "entity_category": "measurements_and_metrics",
+        "aliases": [
+          "CRISPR editing efficiency"
+        ],
+        "description": "Proportion of cells with successful edits following CRISPR-Cas9 editing.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "achieving 85% editing efficiency across multiple cell lines"
+        ]
+      },
+      {
+        "entity_name": "Tumor Proliferation Rate Reduction",
+        "entity_type": "measurement",
+        "entity_category": "measurements_and_metrics",
+        "aliases": [
+          "tumor proliferation reduction",
+          "40% reduction in tumor proliferation rates"
+        ],
+        "description": "Decrease in the rate of tumor cell proliferation observed after TP53 restoration.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "lead to 40% reduction in tumor proliferation rates"
+        ]
+      },
+      {
+        "entity_name": "TP53 Restoration",
+        "entity_type": "process",
+        "entity_category": "physiological_processes",
+        "aliases": [
+          "p53 restoration",
+          "restoration of TP53 function"
+        ],
+        "description": "Restoration of TP53 tumor suppressor gene function, reactivating p53-mediated cell cycle arrest and apoptosis.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "CRISPR-Cas9-mediated TP53 restoration leads to 40% reduction in tumor proliferation rates and enhanced sensitivity to chemotherapeutic agents"
+        ]
+      },
+      {
+        "entity_name": "Chemotherapeutic Agents",
+        "entity_type": "drug",
+        "entity_category": "chemical_entities",
+        "aliases": [
+          "chemotherapy drugs",
+          "anticancer drugs"
+        ],
+        "description": "Chemicals used to treat cancer by damaging DNA or inhibiting cell division.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_001"
+        ],
+        "provenance": [
+          "enhanced sensitivity to chemotherapeutic agents"
+        ]
+      },
+      {
+        "entity_name": "HCT116",
+        "entity_type": "organism",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "HCT-116",
+          "HCT116 colorectal cancer cells"
+        ],
+        "description": "Human colorectal cancer cell line.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "We employed a comprehensive CRISPR-Cas9 workflow targeting TP53 mutations in HCT116 colorectal cancer cells."
+        ]
+      },
+      {
+        "entity_name": "CHOPCHOP",
+        "entity_type": "method",
+        "entity_category": "technologies_and_tools",
+        "aliases": [
+          "CHOPCHOP algorithm"
+        ],
+        "description": "Design tool/algorithm used to identify optimal sgRNA targeting sequences for CRISPR editing.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "For sgRNA design, we utilized the CHOPCHOP algorithm to identify optimal targeting sequences within exons 5-8 of the TP53 gene, focusing on regions encoding the DNA-binding domain."
+        ]
+      },
+      {
+        "entity_name": "Cas9",
+        "entity_type": "protein",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "SpCas9",
+          "Cas9 nuclease",
+          "Cas9 endonuclease"
+        ],
+        "description": "RNA-guided endonuclease used in CRISPR genome editing to introduce double-strand breaks at target DNA sequences.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "The experimental design included three main components: sgRNA design and validation, Cas9 delivery optimization, and functional assessment of gene editing outcomes."
+        ]
+      },
+      {
+        "entity_name": "Green Fluorescent Protein",
+        "entity_type": "protein",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "GFP"
+        ],
+        "description": "Fluorescent reporter protein used to monitor transfection efficiency and plasmid expression.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "The selected sgRNAs were cloned into pSpCas9(BB)-2A-GFP vectors and validated through in vitro cleavage assays; cells were sorted for GFP expression."
+        ]
+      },
+      {
+        "entity_name": "Lipofectamine 3000",
+        "entity_type": "drug",
+        "entity_category": "chemical_entities",
+        "aliases": [
+          "Lipofectamine 3000"
+        ],
+        "description": "Transfection reagent used to introduce plasmids into mammalian cells.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "Transfection was performed using Lipofectamine 3000 with 2 \u03bcg of Cas9-sgRNA plasmids per 10^5 cells."
+        ]
+      },
+      {
+        "entity_name": "McCoy's 5A Medium",
+        "entity_type": "drug",
+        "entity_category": "chemical_entities",
+        "aliases": [
+          "McCoy's 5A medium"
+        ],
+        "description": "Cell culture medium used to maintain mammalian cells.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "HCT116 cells maintained in McCoy's 5A medium supplemented with 10% fetal bovine serum."
+        ]
+      },
+      {
+        "entity_name": "Fetal Bovine Serum",
+        "entity_type": "drug",
+        "entity_category": "chemical_entities",
+        "aliases": [
+          "fetal bovine serum",
+          "FBS"
+        ],
+        "description": "Serum supplement used in cell culture.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "10% fetal bovine serum."
+        ]
+      },
+      {
+        "entity_name": "T7 Endonuclease I",
+        "entity_type": "protein",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "T7 Endonuclease I",
+          "T7E1"
+        ],
+        "description": "Endonuclease enzyme used to detect mismatches in gene-editing assays.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "Gene editing efficiency was assessed using T7 endonuclease I assays and Sanger sequencing."
+        ]
+      },
+      {
+        "entity_name": "Sanger sequencing",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "dideoxy sequencing",
+          "Sanger sequencing"
+        ],
+        "description": "DNA sequencing method based on chain-termination with dideoxynucleotides.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "Gene editing efficiency was assessed using T7 endonuclease I assays and Sanger sequencing."
+        ]
+      },
+      {
+        "entity_name": "Annexin V/PI staining",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "PI staining",
+          "Annexin V/PI",
+          "Annexin V staining"
+        ],
+        "description": "Flow cytometry-based assay to quantify apoptosis by detecting phosphatidylserine exposure and membrane integrity.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "Functional outcomes were evaluated through apoptosis assays (Annexin V/PI staining) and proliferation measurements (MTS assay)."
+        ]
+      },
+      {
+        "entity_name": "MTS assay",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "MTS assay"
+        ],
+        "description": "Colorimetric assay to assess cell proliferation/viability.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "Functional outcomes were evaluated through apoptosis assays (Annexin V/PI staining) and proliferation measurements (MTS assay)."
+        ]
+      },
+      {
+        "entity_name": "GraphPad Prism",
+        "entity_type": "method",
+        "entity_category": "technologies_and_tools",
+        "aliases": [
+          "GraphPad Prism",
+          "Prism"
+        ],
+        "description": "Statistical analysis and graphing software used for data analysis.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "Statistical analysis was performed using GraphPad Prism with Student's t-test for pairwise comparisons and ANOVA for multiple group analyses."
+        ]
+      },
+      {
+        "entity_name": "Student's t-test",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "t-test",
+          "Student's t-test"
+        ],
+        "description": "Statistical test used to compare means between two groups.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "Statistical analysis was performed using GraphPad Prism with Student's t-test for pairwise comparisons and ANOVA for multiple group analyses."
+        ]
+      },
+      {
+        "entity_name": "ANOVA",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "ANOVA"
+        ],
+        "description": "Statistical method used to compare means across multiple groups.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "Statistical analysis was performed using GraphPad Prism with Student's t-test for pairwise comparisons and ANOVA for multiple group analyses."
+        ]
+      },
+      {
+        "entity_name": "Cas9 delivery",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "Cas9 delivery optimization",
+          "Cas9 delivery"
+        ],
+        "description": "Optimization of methods to deliver Cas9 into cells for genome editing.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_002"
+        ],
+        "provenance": [
+          "The experimental design included three main components: sgRNA design and validation, Cas9 delivery optimization, and functional assessment of gene editing outcomes."
+        ]
+      },
+      {
+        "entity_name": "p53",
+        "entity_type": "protein",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "p53",
+          "tumor protein p53",
+          "TP53 protein"
+        ],
+        "description": "Tumor suppressor protein encoded by TP53; transcription factor that induces cell cycle arrest and apoptosis.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Western blot analysis confirmed increased expression of p21 and Bax proteins, downstream targets of functional TP53."
+        ]
+      },
+      {
+        "entity_name": "HCT116",
+        "entity_type": "cell_line",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "HCT116 colorectal cancer cell line",
+          "HCT-116"
+        ],
+        "description": "Human colorectal carcinoma cell line used for gene editing experiments in this study.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "CRISPR-Cas9-mediated TP53 editing demonstrated remarkable efficacy in HCT116 colorectal cancer cells."
+        ]
+      },
+      {
+        "entity_name": "T7 Endonuclease I",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "T7 endonuclease I",
+          "T7E1",
+          "T7 endonuclease I assay"
+        ],
+        "description": "Restriction enzyme used in mismatch cleavage assays to detect CRISPR-induced indels; commonly used to confirm editing.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "as confirmed by T7 endonuclease I assays and sequencing analysis."
+        ]
+      },
+      {
+        "entity_name": "Sequencing analysis",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "DNA sequencing",
+          "sequencing"
+        ],
+        "description": "Analytical approach to determine nucleotide sequences and assess genome edits after CRISPR editing.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "as confirmed by T7 endonuclease I assays and sequencing analysis."
+        ]
+      },
+      {
+        "entity_name": "TP53 restoration",
+        "entity_type": "biological_process",
+        "entity_category": "physiological_processes",
+        "aliases": [
+          "p53 restoration",
+          "restoration of TP53 function"
+        ],
+        "description": "Restoration of TP53 tumor suppressor function leading to downstream cellular effects such as altered proliferation and apoptosis.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "TP53 restoration resulted in 42.7% \u00b1 6.1% reduction in cell proliferation compared to control groups (p < 0.001)."
+        ]
+      },
+      {
+        "entity_name": "Cell proliferation",
+        "entity_type": "biological_process",
+        "entity_category": "physiological_processes",
+        "aliases": [
+          "proliferation",
+          "cell growth"
+        ],
+        "description": "Process of cell division and expansion; used here as a readout of TP53 functional restoration.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "TP53 restoration resulted in 42.7% \u00b1 6.1% reduction in cell proliferation compared to control groups (p < 0.001)."
+        ]
+      },
+      {
+        "entity_name": "Apoptosis",
+        "entity_type": "biological_process",
+        "entity_category": "physiological_processes",
+        "aliases": [
+          "programmed cell death"
+        ],
+        "description": "Controlled process of cell death that eliminates damaged or dangerous cells; a downstream effect of TP53 activity.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Apoptosis induction was particularly pronounced, with 67.3% \u00b1 8.4% of edited cells showing positive Annexin V staining after 48 hours."
+        ]
+      },
+      {
+        "entity_name": "Annexin V staining",
+        "entity_type": "method",
+        "entity_category": "methods_and_approaches",
+        "aliases": [
+          "Annexin V assay",
+          "Annexin V staining assay"
+        ],
+        "description": "Flow cytometry-based method to detect phosphatidylserine exposure on apoptotic cells using Annexin V.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Apoptosis induction was particularly pronounced, with 67.3% \u00b1 8.4% of edited cells showing positive Annexin V staining after 48 hours."
+        ]
+      },
+      {
+        "entity_name": "Western blot",
+        "entity_type": "method",
+        "entity_category": "technologies_and_tools",
+        "aliases": [
+          "immunoblotting",
+          "WB",
+          "Western blotting"
+        ],
+        "description": "Analytical technique that separates proteins by electrophoresis and detects specific proteins with antibodies.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Western blot analysis confirmed increased expression of p21 and Bax proteins, downstream targets of functional TP53."
+        ]
+      },
+      {
+        "entity_name": "p21",
+        "entity_type": "protein",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "CDKN1A",
+          "cyclin-dependent kinase inhibitor 1A"
+        ],
+        "description": "Cyclin-dependent kinase inhibitor encoded by CDKN1A; a downstream target of TP53 that contributes to cell cycle arrest.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Western blot analysis confirmed increased expression of p21 and Bax proteins, downstream targets of functional TP53."
+        ]
+      },
+      {
+        "entity_name": "BAX",
+        "entity_type": "protein",
+        "entity_category": "biological_entities",
+        "aliases": [
+          "BAX",
+          "Bcl-2-associated X protein"
+        ],
+        "description": "Pro-apoptotic Bcl-2 family protein; a downstream target of TP53 that promotes apoptosis.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Western blot analysis confirmed increased expression of p21 and Bax proteins, downstream targets of functional TP53."
+        ]
+      },
+      {
+        "entity_name": "5-Fluorouracil",
+        "entity_type": "drug",
+        "entity_category": "chemical_entities",
+        "aliases": [
+          "5-fluorouracil",
+          "5-FU"
+        ],
+        "description": "Antimetabolite chemotherapeutic agent that inhibits thymidylate synthase; widely used in colorectal cancer therapy.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Notably, edited cells exhibited enhanced sensitivity to 5-fluorouracil treatment, with IC50 values decreasing from 12.3 \u03bcM to 4.7 \u03bcM (p < 0.01)."
+        ]
+      },
+      {
+        "entity_name": "IC50",
+        "entity_type": "measurement",
+        "entity_category": "measurements_and_metrics",
+        "aliases": [
+          "inhibitory concentration 50%",
+          "IC50 value"
+        ],
+        "description": "Concentration of a substance that inhibits a biological process by 50%.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Notably, edited cells exhibited enhanced sensitivity to 5-fluorouracil treatment, with IC50 values decreasing from 12.3 \u03bcM to 4.7 \u03bcM (p < 0.01)."
+        ]
+      },
+      {
+        "entity_name": "G1/S checkpoint",
+        "entity_type": "biological_process",
+        "entity_category": "physiological_processes",
+        "aliases": [
+          "G1/S transition",
+          "G1 to S transition"
+        ],
+        "description": "Cell cycle checkpoint regulating progression from G1 phase into S phase.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Flow cytometry analysis revealed cell cycle arrest at G1/S checkpoint in 78.2% of TP53-restored cells."
+        ]
+      },
+      {
+        "entity_name": "Off-target effects",
+        "entity_type": "concept",
+        "entity_category": "other_concepts",
+        "aliases": [
+          "off-target effects",
+          "off-target editing"
+        ],
+        "description": "Unintended genome edits at sites with sequence similarity to the target region.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "The study also identified potential off-target effects in 3.2% of analyzed sites, primarily in genes with sequence homology to the target region."
+        ]
+      },
+      {
+        "entity_name": "Gene editing efficiency",
+        "entity_type": "measurement",
+        "entity_category": "measurements_and_metrics",
+        "aliases": [
+          "editing efficiency"
+        ],
+        "description": "Proportion of cells in which the intended genetic modification was achieved by CRISPR-Cas9.",
+        "frequency": 1,
+        "document_id": "test_doc_comprehensive_001",
+        "section_ids": [
+          "section_003"
+        ],
+        "provenance": [
+          "Gene editing efficiency reached 85.3% \u00b1 4.2% across three independent experiments."
+        ]
+      }
+    ],
+    "final_relationships": [
+      {
+        "source_entity": "CRISPR-Cas9",
+        "target_entity": "TP53",
+        "relationship_type": "targets",
+        "relationship_strength": 0.99,
+        "description": "CRISPR-Cas9 targets TP53 for editing in HCT116 colorectal cancer cells.; CRISPR-Cas9 targets TP53 mutations in HCT116 cells.; CRISPR-Cas9 targets TP53 mutations.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_002",
+          "section_001",
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.99,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "CRISPR-Cas9",
+        "target_entity": "TP53 Restoration",
+        "relationship_type": "induces",
+        "relationship_strength": 0.75,
+        "description": "CRISPR-Cas9 induces TP53 Restoration.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_001"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.75,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 Restoration",
+        "target_entity": "Tumor Proliferation Rate Reduction",
+        "relationship_type": "induces",
+        "relationship_strength": 0.75,
+        "description": "TP53 Restoration induces Tumor Proliferation Rate Reduction.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_001"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.75,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 Restoration",
+        "target_entity": "Chemotherapeutic Agents",
+        "relationship_type": "enhances",
+        "relationship_strength": 0.7,
+        "description": "TP53 Restoration enhances sensitivity to Chemotherapeutic Agents.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_001"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.7,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "CRISPR-Cas9",
+        "target_entity": "Editing Efficiency",
+        "relationship_type": "increases",
+        "relationship_strength": 0.75,
+        "description": "CRISPR-Cas9 increases editing efficiency to 85% across multiple cell lines.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_001"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.75,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "CRISPR-Cas9",
+        "target_entity": "Apoptosis",
+        "relationship_type": "induces",
+        "relationship_strength": 0.9,
+        "description": "CRISPR-Cas9 induces Apoptosis.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_001"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.9,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "CRISPR-Cas9",
+        "target_entity": "Tumor Growth Inhibition",
+        "relationship_type": "induces",
+        "relationship_strength": 0.9,
+        "description": "CRISPR-Cas9 induces Tumor Growth Inhibition.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_001"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.9,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "CHOPCHOP",
+        "target_entity": "TP53",
+        "relationship_type": "targets",
+        "relationship_strength": 0.75,
+        "description": "CHOPCHOP was used to identify targeting sequences within TP53.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_002"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.75,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "HCT116",
+        "target_entity": "McCoy's 5A Medium",
+        "relationship_type": "cultured_in",
+        "relationship_strength": 0.75,
+        "description": "HCT116 cells were cultured in McCoy's 5A Medium.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_002"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.75,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "McCoy's 5A Medium",
+        "target_entity": "Fetal Bovine Serum",
+        "relationship_type": "supplemented_with",
+        "relationship_strength": 0.75,
+        "description": "McCoy's 5A Medium is supplemented with Fetal Bovine Serum.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_002"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.75,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "GraphPad Prism",
+        "target_entity": "Student's t-test",
+        "relationship_type": "uses",
+        "relationship_strength": 0.75,
+        "description": "GraphPad Prism was used to perform Student's t-test for pairwise comparisons.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_002"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.75,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "GraphPad Prism",
+        "target_entity": "ANOVA",
+        "relationship_type": "uses",
+        "relationship_strength": 0.75,
+        "description": "GraphPad Prism was used to perform ANOVA for multiple group analyses.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_002"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.75,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 restoration",
+        "target_entity": "Cell proliferation",
+        "relationship_type": "decreases",
+        "relationship_strength": 0.925,
+        "description": "TP53 restoration decreases cell proliferation.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.925,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 restoration",
+        "target_entity": "Apoptosis",
+        "relationship_type": "induces",
+        "relationship_strength": 0.85,
+        "description": "TP53 restoration induces apoptosis in edited cells, as indicated by apoptosis-related measurements.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.85,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 restoration",
+        "target_entity": "p21",
+        "relationship_type": "upregulates",
+        "relationship_strength": 0.95,
+        "description": "TP53 restoration upregulates p21 expression.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.95,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 restoration",
+        "target_entity": "BAX",
+        "relationship_type": "upregulates",
+        "relationship_strength": 0.95,
+        "description": "TP53 restoration upregulates BAX expression.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.95,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 restoration",
+        "target_entity": "IC50",
+        "relationship_type": "decreases",
+        "relationship_strength": 0.935,
+        "description": "TP53 restoration decreases IC50 for 5-Fluorouracil, indicating increased drug sensitivity.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.935,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 restoration",
+        "target_entity": "5-Fluorouracil",
+        "relationship_type": "enhances",
+        "relationship_strength": 0.95,
+        "description": "TP53 restoration enhances sensitivity to 5-Fluorouracil treatment.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.95,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "TP53 restoration",
+        "target_entity": "G1/S checkpoint",
+        "relationship_type": "induces",
+        "relationship_strength": 0.85,
+        "description": "TP53 restoration induces cell cycle arrest at the G1/S checkpoint.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.85,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "CRISPR-Cas9",
+        "target_entity": "Off-target effects",
+        "relationship_type": "associated_with",
+        "relationship_strength": 0.7,
+        "description": "CRISPR-Cas9 editing is associated with off-target effects observed at some analyzed sites.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.7,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "Gene editing efficiency",
+        "target_entity": "T7 Endonuclease I",
+        "relationship_type": "evaluated_by",
+        "relationship_strength": 0.975,
+        "description": "Gene editing efficiency is evaluated by T7 Endonuclease I assays.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.975,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "Gene editing efficiency",
+        "target_entity": "Sequencing analysis",
+        "relationship_type": "evaluated_by",
+        "relationship_strength": 0.975,
+        "description": "Gene editing efficiency is evaluated by sequencing analysis.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.975,
+        "evidence_count": 1
+      },
+      {
+        "source_entity": "HCT116",
+        "target_entity": "Colorectal Cancer",
+        "relationship_type": "part_of",
+        "relationship_strength": 0.8,
+        "description": "HCT116 cells are part of colorectal cancer context in this study.",
+        "paper_ids": [
+          "test_doc_comprehensive_001"
+        ],
+        "section_ids": [
+          "section_003"
+        ],
+        "consensus_level": "high",
+        "confidence": 0.8,
+        "evidence_count": 1
+      }
+    ],
+    "entity_merges": 0,
+    "contradictions": 0,
+    "contradiction_resolutions": 0,
+    "resolution_summary": {},
+    "consolidated_relationships": 23,
+    "consolidation_summary": {
+      "consensus": 0,
+      "evidence_based": 0,
+      "temporal": 0,
+      "complementary": 0,
+      "single_relationship": 23,
+      "errors": 0
+    },
+    "global_processing_results": {
+      "document_id": "test_doc_comprehensive_001",
+      "error": "Failed to load global graph state: Authentication failed., full error: {'ok': 0.0, 'errmsg': 'Authentication failed.', 'code': 18, 'codeName': 'AuthenticationFailed'}",
+      "entities_processed": 0,
+      "relationships_processed": 0
+    },
+    "errors": [
+      "Error in entity reduction: 1 validation error for Entity\nentity_type\n  Input should be 'method', 'dataset', 'organism', 'gene', 'protein', 'molecule', 'genetic_variant', 'disease', 'physiological_process', 'algorithm', 'model', 'framework', 'instrument', 'software', 'sample', 'population', 'location', 'ecosystem', 'event', 'phenomenon', 'result', 'finding', 'observation', 'metric', 'measurement', 'index', 'statistical_parameter', 'author', 'institution', 'funding_body', 'concept', 'hypothesis', 'limitation', 'policy_doc', 'regulation', 'ethical_principle', 'timepoint', 'period', 'publication', 'platform', 'knowledge_graph', 'season' or 'other' [type=enum, input_value='cell_line', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.11/v/enum"
+    ]
+  }
+}

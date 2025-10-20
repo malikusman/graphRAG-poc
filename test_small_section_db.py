@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test GraphRAG pipeline with a small section and database storage (with fixed MongoDB URL)
+Test GraphRAG pipeline with a small section and database storage
 """
 
 import asyncio
@@ -8,9 +8,6 @@ import logging
 import sys
 import os
 from datetime import datetime
-
-# Override the MongoDB URL environment variable before importing app modules
-os.environ["MONGODB_URL"] = "mongodb://localhost:27017/sagewrite"
 
 # Add the app directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
@@ -167,16 +164,16 @@ async def verify_database_storage(document_id: str):
         logger.error(f"❌ Database verification failed: {str(e)}")
         return 0, 0
 
-async def test_small_section_fixed():
+async def test_small_section():
     """Test GraphRAG pipeline with a small section and database storage"""
-    logger.info("🚀 Starting Small Section GraphRAG Test with Fixed Database Connection")
+    logger.info("🚀 Starting Small Section GraphRAG Test with Database Storage")
     
     try:
         # Create a small test document with one section
-        document_id = "test_small_doc_002"
+        document_id = "test_small_doc_001"
         sections = [
             {
-                "_id": "section_small_002",
+                "_id": "section_small_001",
                 "title": "Abstract",
                 "text": "CRISPR-Cas9 is a revolutionary gene editing technology that allows precise modification of DNA sequences. This study demonstrates CRISPR-Cas9 targeting the TP53 gene in cancer cells, resulting in significant tumor suppression and enhanced apoptosis. The methodology achieved 90% editing efficiency using optimized guide RNAs. Results show that TP53 restoration leads to 50% reduction in cell proliferation and increased sensitivity to chemotherapy drugs like 5-fluorouracil.",
                 "type": "abstract",
@@ -241,5 +238,5 @@ async def test_small_section_fixed():
 
 if __name__ == "__main__":
     # Run the small section test
-    asyncio.run(test_small_section_fixed())
+    asyncio.run(test_small_section())
 
