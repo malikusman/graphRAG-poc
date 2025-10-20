@@ -90,11 +90,17 @@ class EmbeddingsService:
             Embedding vector or None if failed
         """
         try:
-            # Combine title and text for better context
-            if section_title:
-                combined_text = f"{section_title}: {section_text}"
-            else:
+            # Combine title and text for better context using the format specified in the plan
+            if section_title and section_text:
+                combined_text = f"Title: {section_title}. Text: {section_text}"
+            elif section_title:
+                combined_text = f"Title: {section_title}."
+            elif section_text:
                 combined_text = section_text
+            else:
+                # Both are empty, return None
+                logger.warning("Both title and text are empty, skipping embedding generation")
+                return None
             
             return self.generate_embedding(combined_text)
             
@@ -109,3 +115,40 @@ class EmbeddingsService:
     def get_model_name(self) -> str:
         """Get the embedding model name"""
         return self.model
+    
+    def generate_section_embeddings_batch(self, sections: List[dict]) -> List[dict]:
+        """
+        Generate embeddings for multiple sections with title and text combination
+        
+        Args:
+            sections: List of section dictionaries with 'title' and 'text' keys
+            
+        Returns:
+            List of section dictionaries with populated 'embeddings' field
+        """
+        processed_sections = []
+        
+        for section in sections:
+            # Create a copy to avoid modifying the original
+            processed_section = section.copy()
+            
+            # Check if text is empty or None
+            text = section.get('text', '')
+            title = section.get('title', '')
+            
+            if not text or not text.strip():
+                # Keep empty embeddings array for empty text as specified in requirements
+                processed_section['embeddings'] = []
+                logger.debug(f"Skipping embedding generation for section {section.get('section_id', 'unknown')} - empty text")
+            else:
+                # Generate embedding with title and text combination
+                embedding = self.generate_section_embedding(text, title)
+                if embedding:
+                    processed_section['embeddings'] = embedding
+                else:
+                    processed_section['embeddings'] = []
+                    logger.warning(f"Failed to generate embedding for section {section.get('section_id', 'unknown')}")
+            
+            processed_sections.append(processed_section)
+        
+        return processed_sections

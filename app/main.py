@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.database.models import initialize_database
 from app.api import documents, queries
-from app.api.endpoints import api_integration
+from app.api.endpoints import api_integration, embeddings
 
 # Configure logging
 logging.basicConfig(
@@ -48,6 +48,7 @@ app.add_middleware(
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(queries.router, prefix="/api/v1/queries", tags=["queries"])
 app.include_router(api_integration.router, prefix="/api/v1", tags=["API Integration"])
+app.include_router(embeddings.router, prefix="/api/v1", tags=["Embeddings"])
 
 
 @app.get("/")
