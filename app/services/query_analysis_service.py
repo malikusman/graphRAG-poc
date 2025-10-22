@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 
 from app.core.config import settings
 from app.configs.schemas import load_prompt
@@ -70,7 +72,7 @@ class QueryAnalysisService:
     def __init__(self):
         """Initialize the query analyzer"""
         self.llm = ChatOpenAI(
-            model=settings.OPENAI_MODEL,
+            model="gpt-4o-mini",  # Use a model that supports temperature
             temperature=0.1,  # Low temperature for consistent analysis
             api_key=settings.OPENAI_API_KEY
         )
@@ -84,6 +86,7 @@ class QueryAnalysisService:
         
         self.parser = JsonOutputParser()
     
+    @traceable(name="analyze_query_service", tags=["retrieval", "query_analysis"])
     async def analyze_query(self, query: str) -> QueryAnalysis:
         """
         Analyze a user query to understand what they're asking for
@@ -94,6 +97,13 @@ class QueryAnalysisService:
         Returns:
             QueryAnalysis: Complete analysis of the query
         """
+        run = get_current_run_tree()
+        if run:
+            run.add_metadata({
+                "query_length": len(query),
+                "query_words": len(query.split())
+            })
+        
         try:
             logger.info(f"Analyzing query: {query}")
             
@@ -105,6 +115,15 @@ class QueryAnalysisService:
             
             # Convert to our QueryAnalysis model
             analysis = self._convert_to_analysis(query, result)
+            
+            # Add output metadata
+            if run:
+                run.add_metadata({
+                    "detected_intent": analysis.intent.value,
+                    "complexity": analysis.complexity.value,
+                    "recommended_strategy": analysis.recommended_strategy.value,
+                    "num_entities": len(analysis.entities)
+                })
             
             logger.info(f"Analysis complete: intent={analysis.intent}, complexity={analysis.complexity}, "
                        f"strategy={analysis.recommended_strategy}, confidence={analysis.confidence:.2f}")

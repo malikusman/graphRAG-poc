@@ -7,6 +7,8 @@ import asyncio
 from typing import Dict, Any
 from celery import current_task
 from bson import ObjectId
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 
 from app.tasks.celery_app import celery_app
 from app.core.database import get_sync_database
@@ -17,7 +19,12 @@ from app.services.embeddings import EmbeddingsService
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task
+@celery_app.task(name="process_document")
+@traceable(
+    name="celery_document_processing",
+    tags=["celery", "async", "background"],
+    metadata={"task_type": "document_processing"}
+)
 def process_document(document_id: str):
     """
     Process a document through the enhanced GraphRAG pipeline with global graph integration
@@ -28,6 +35,13 @@ def process_document(document_id: str):
     Returns:
         Dict with processing results
     """
+    run = get_current_run_tree()
+    if run:
+        run.add_metadata({
+            "document_id": document_id,
+            "task_id": process_document.request.id if hasattr(process_document, 'request') else None
+        })
+    
     try:
         logger.info(f"Starting enhanced document processing for document {document_id}")
 

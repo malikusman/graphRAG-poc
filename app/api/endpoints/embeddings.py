@@ -6,6 +6,7 @@ import logging
 from typing import List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from langsmith import traceable
 
 from app.models.sections import SectionEmbeddingRequest
 from app.services.embeddings import EmbeddingsService
@@ -55,6 +56,11 @@ class EmbeddingsGenerateResponse(BaseModel):
 
 
 @router.post("/generate", response_model=EmbeddingsGenerateResponse)
+@traceable(
+    name="embeddings_api_generate",
+    tags=["api", "embeddings"],
+    metadata={"endpoint": "/api/v1/embeddings/generate"}
+)
 async def generate_embeddings(request: EmbeddingsGenerateRequest):
     """
     Generate embeddings for a list of sections

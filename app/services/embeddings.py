@@ -5,6 +5,8 @@ OpenAI embeddings service for generating vector embeddings
 import logging
 from typing import List, Optional
 import openai
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -32,9 +34,14 @@ class EmbeddingsService:
             self.max_tokens = 8191
             self.dimensions = 1536
     
+    @traceable(
+        name="generate_embedding",
+        run_type="embedding",
+        tags=["embedding", "openai"]
+    )
     def generate_embedding(self, text: str) -> Optional[List[float]]:
         """
-        Generate embedding for a single text
+        Generate embedding for a single text with LangSmith tracing
         
         Args:
             text: Text to embed
@@ -42,6 +49,14 @@ class EmbeddingsService:
         Returns:
             List of embedding values or None if failed
         """
+        run = get_current_run_tree()
+        if run:
+            run.add_metadata({
+                "model": self.model,
+                "text_length": len(text),
+                "max_tokens": self.max_tokens
+            })
+        
         try:
             # Truncate text if too long
             if len(text) > self.max_tokens * 4:  # Rough character to token ratio
@@ -53,10 +68,20 @@ class EmbeddingsService:
             )
             
             embedding = response.data[0].embedding
+            
+            # Add output metadata
+            if run:
+                run.add_metadata({
+                    "embedding_dimensions": len(embedding),
+                    "tokens_used": response.usage.total_tokens if hasattr(response, 'usage') else None
+                })
+            
             logger.debug(f"Generated embedding with {len(embedding)} dimensions")
             return embedding
             
         except Exception as e:
+            if run:
+                run.add_error(e)
             logger.error(f"Error generating embedding: {str(e)}")
             return None
     
@@ -116,6 +141,11 @@ class EmbeddingsService:
         """Get the embedding model name"""
         return self.model
     
+    @traceable(
+        name="generate_section_embeddings_batch",
+        run_type="embedding",
+        tags=["embedding", "batch", "sections"]
+    )
     def generate_section_embeddings_batch(self, sections: List[dict]) -> List[dict]:
         """
         Generate embeddings for multiple sections with title and text combination
@@ -126,6 +156,13 @@ class EmbeddingsService:
         Returns:
             List of section dictionaries with populated 'embeddings' field
         """
+        run = get_current_run_tree()
+        if run:
+            run.add_metadata({
+                "num_sections": len(sections),
+                "batch_operation": True
+            })
+        
         processed_sections = []
         
         for section in sections:
@@ -150,5 +187,13 @@ class EmbeddingsService:
                     logger.warning(f"Failed to generate embedding for section {section.get('section_id', 'unknown')}")
             
             processed_sections.append(processed_section)
+        
+        # Add output metadata
+        if run:
+            successful = sum(1 for s in processed_sections if s.get('embeddings'))
+            run.add_metadata({
+                "successful_embeddings": successful,
+                "failed_embeddings": len(sections) - successful
+            })
         
         return processed_sections

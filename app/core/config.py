@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     
     # OpenAI
     OPENAI_API_KEY: str = Field(env="OPENAI_API_KEY")
-    OPENAI_MODEL: str = Field(default="gpt-5-nano", env="OPENAI_MODEL")
+    OPENAI_MODEL: str = Field(default="gpt-4o-mini", env="OPENAI_MODEL")
     OPENAI_EMBEDDING_MODEL: str = Field(default="text-embedding-3-small", env="OPENAI_EMBEDDING_MODEL")
     
     # Google Gemini (for future migration)
@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = Field(default="gemini-2.0-flash", env="GEMINI_MODEL")
     GEMINI_EMBEDDING_MODEL: str = Field(default="text-embedding-004", env="GEMINI_EMBEDDING_MODEL")
     GEMINI_TEMPERATURE: float = Field(default=0.1, env="GEMINI_TEMPERATURE")
+    
+    # LangSmith Observability
+    LANGCHAIN_TRACING_V2: bool = Field(default=True, env="LANGCHAIN_TRACING_V2")
+    LANGCHAIN_API_KEY: str = Field(default="", env="LANGCHAIN_API_KEY")
+    LANGCHAIN_PROJECT: str = Field(default="sagewrite-graphrag", env="LANGCHAIN_PROJECT")
+    LANGCHAIN_ENDPOINT: str = Field(default="https://api.smith.langchain.com", env="LANGCHAIN_ENDPOINT")
     
     # Celery
     CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/0", env="CELERY_BROKER_URL")

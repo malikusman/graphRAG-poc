@@ -12,6 +12,8 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import time
 import logging
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 
 from app.core.database import AsyncIOMotorDatabase
 from app.models import QueryResponse, QuerySource, GraphPath
@@ -48,6 +50,10 @@ class RetrievalService:
         logger.info("RetrievalService initialized with strategies: " + 
                    ", ".join([s.value for s in self.strategies.keys()]))
     
+    @traceable(
+        name="retrieval_process_query",
+        tags=["retrieval", "orchestrator"]
+    )
     async def process_query(
         self,
         query: str,
@@ -73,6 +79,14 @@ class RetrievalService:
         Returns:
             QueryResponse with answer, sources, graph paths, and metadata
         """
+        run = get_current_run_tree()
+        if run:
+            run.add_metadata({
+                "query": query,
+                "max_results": max_results,
+                "include_graph": include_graph
+            })
+        
         start_time = time.time()
         
         try:
