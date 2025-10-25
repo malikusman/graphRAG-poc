@@ -1,5 +1,7 @@
 # SageWrite GraphRAG
 
+[![CI Pipeline](https://github.com/malikusman/graphRAG-poc/actions/workflows/ci.yml/badge.svg)](https://github.com/malikusman/graphRAG-poc/actions/workflows/ci.yml)
+
 A comprehensive Graph-based Retrieval-Augmented Generation system for scientific papers, built with FastAPI, LangGraph, and MongoDB. This system processes documents through an 8-node pipeline to extract entities and relationships, builds a knowledge graph, and provides intelligent search capabilities through multiple retrieval strategies.
 
 ## 🎯 What This Application Does
