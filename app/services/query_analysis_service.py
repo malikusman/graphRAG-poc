@@ -14,13 +14,13 @@ import logging
 from typing import Dict, List, Any, Optional
 from enum import Enum
 from pydantic import BaseModel, Field
-from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langsmith import traceable
 from langsmith.run_helpers import get_current_run_tree
 
 from app.core.config import settings
+from app.core.llm_provider import get_llm
 from app.configs.schemas import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -71,11 +71,8 @@ class QueryAnalysisService:
     
     def __init__(self):
         """Initialize the query analyzer"""
-        self.llm = ChatOpenAI(
-            model="gpt-4o-mini",  # Use a model that supports temperature
-            temperature=0.1,  # Low temperature for consistent analysis
-            api_key=settings.OPENAI_API_KEY
-        )
+        # Use LLM provider abstraction to support both OpenAI and Bedrock
+        self.llm = get_llm(temperature=0.1)
         
         # Load query analysis prompt from JSON file
         self.prompt_config = load_prompt("query_analysis", "orchestrator")

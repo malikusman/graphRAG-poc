@@ -4,13 +4,13 @@ RelationshipConsolidator service for consolidating relationships across document
 
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 import json
 from datetime import datetime
 
 from app.core.config import settings
+from app.core.llm_provider import get_llm
 from app.configs.schemas import load_prompt
 from app.models.relationships import Relationship
 from app.utils.math_utils import calculate_noisy_or_strength
@@ -23,11 +23,8 @@ class RelationshipConsolidator:
     
     def __init__(self):
         """Initialize the consolidator with LLM and prompts"""
-        self.llm = ChatOpenAI(
-            model=settings.OPENAI_MODEL,
-            temperature=0.1,
-            api_key=settings.OPENAI_API_KEY
-        )
+        # Use LLM provider abstraction to support both OpenAI and Bedrock
+        self.llm = get_llm(temperature=0.1)
         
         # Load relationship consolidation prompt
         self.prompt_config = load_prompt("relationship_consolidation", "reduce")

@@ -5,7 +5,6 @@ LangGraph pipeline for GraphRAG Map-Combine-Reduce processing
 import logging
 from typing import TypedDict, List, Dict, Any, Optional
 from langgraph.graph import StateGraph, END
-from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langsmith import traceable
@@ -13,6 +12,7 @@ from langsmith.run_helpers import get_current_run_tree
 import json
 
 from app.core.config import settings
+from app.core.llm_provider import get_llm
 from app.configs.schemas import load_prompt, ENTITY_CATEGORIES, RELATIONSHIP_TYPES
 from app.services.entity_canonicalizer import EntityCanonicalizer
 from app.services.contradiction_detector import ContradictionDetector
@@ -52,11 +52,8 @@ class GraphRAGPipeline:
     
     def __init__(self):
         """Initialize the pipeline with LLM and prompts"""
-        self.llm = ChatOpenAI(
-            model=settings.OPENAI_MODEL,
-            temperature=0.1,
-            api_key=settings.OPENAI_API_KEY
-        )
+        # Use LLM provider abstraction to support both OpenAI and Bedrock
+        self.llm = get_llm(temperature=0.1)
         
         # Load prompts
         self.entity_prompt_config = load_prompt("entity_extraction", "map")

@@ -26,10 +26,28 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
     
+    # LLM Provider Selection
+    LLM_PROVIDER: str = Field(default="openai", env="LLM_PROVIDER")  # "openai" or "bedrock"
+    EMBEDDING_PROVIDER: str = Field(default="openai", env="EMBEDDING_PROVIDER")  # "openai" or "bedrock"
+    
     # OpenAI
     OPENAI_API_KEY: str = Field(env="OPENAI_API_KEY")
     OPENAI_MODEL: str = Field(default="gpt-4o-mini", env="OPENAI_MODEL")
     OPENAI_EMBEDDING_MODEL: str = Field(default="text-embedding-3-small", env="OPENAI_EMBEDDING_MODEL")
+    
+    # AWS Bedrock
+    AWS_ACCESS_KEY_ID: str = Field(default="", env="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: str = Field(default="", env="AWS_SECRET_ACCESS_KEY")
+    AWS_REGION: str = Field(default="us-east-1", env="AWS_REGION")
+    BEDROCK_REGION: str = Field(default="us-east-1", env="BEDROCK_REGION")
+    BEDROCK_MODEL_ID: str = Field(
+        default="anthropic.claude-sonnet-4-5-20250929-v1:0",
+        env="BEDROCK_MODEL_ID"
+    )
+    BEDROCK_EMBEDDING_MODEL_ID: str = Field(
+        default="amazon.titan-embed-text-v2:0",
+        env="BEDROCK_EMBEDDING_MODEL_ID"
+    )
     
     # Google Gemini (for future migration)
     GOOGLE_GEMINI_API_KEY: str = Field(default="", env="GOOGLE_GEMINI_API_KEY")
