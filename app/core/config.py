@@ -27,8 +27,13 @@ class Settings(BaseSettings):
     REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
     
     # LLM Provider Selection
-    LLM_PROVIDER: str = Field(default="openai", env="LLM_PROVIDER")  # "openai" or "bedrock"
-    EMBEDDING_PROVIDER: str = Field(default="openai", env="EMBEDDING_PROVIDER")  # "openai" or "bedrock"
+    # Switch providers by setting environment variables:
+    #   LLM_PROVIDER=openai|bedrock|vertexai
+    #   EMBEDDING_PROVIDER=openai|bedrock|vertexai
+    # Providers can be set independently (e.g., LLM from Bedrock, embeddings from OpenAI)
+    # Default: Both use OpenAI
+    LLM_PROVIDER: str = Field(default="openai", env="LLM_PROVIDER")  # "openai", "bedrock", or "vertexai"
+    EMBEDDING_PROVIDER: str = Field(default="openai", env="EMBEDDING_PROVIDER")  # "openai", "bedrock", or "vertexai"
     
     # OpenAI
     OPENAI_API_KEY: str = Field(env="OPENAI_API_KEY")
@@ -49,7 +54,20 @@ class Settings(BaseSettings):
         env="BEDROCK_EMBEDDING_MODEL_ID"
     )
     
-    # Google Gemini (for future migration)
+    # Google Vertex AI
+    VERTEX_AI_PROJECT_ID: str = Field(default="", env="VERTEX_AI_PROJECT_ID")
+    VERTEX_AI_LOCATION: str = Field(default="us-central1", env="VERTEX_AI_LOCATION")
+    VERTEX_AI_CREDENTIALS_PATH: str = Field(default="", env="VERTEX_AI_CREDENTIALS_PATH")
+    VERTEX_AI_MODEL_ID: str = Field(
+        default="gemini-pro",
+        env="VERTEX_AI_MODEL_ID"
+    )
+    VERTEX_AI_EMBEDDING_MODEL_ID: str = Field(
+        default="textembedding-gecko@003",
+        env="VERTEX_AI_EMBEDDING_MODEL_ID"
+    )
+    
+    # Google Gemini (legacy - kept for backward compatibility)
     GOOGLE_GEMINI_API_KEY: str = Field(default="", env="GOOGLE_GEMINI_API_KEY")
     GEMINI_MODEL: str = Field(default="gemini-2.0-flash", env="GEMINI_MODEL")
     GEMINI_EMBEDDING_MODEL: str = Field(default="text-embedding-004", env="GEMINI_EMBEDDING_MODEL")
