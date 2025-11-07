@@ -168,6 +168,16 @@ The core of the system is an 8-node LangGraph pipeline that processes documents 
 
 **Background Processing**: API data processing runs asynchronously using Celery tasks, allowing for scalable processing of large datasets.
 
+#### Notes → Entity Relationships API
+
+The `/api/v1/notes/entity-relationships` endpoint fetches raw note chunks from the external `document-vectors` API, cleans them with an LLM-powered prompt, and runs the GraphRAG pipeline per `document_id`.
+
+- **Fetch**: Uses `NOTES_API_*` settings to authenticate and page through note chunks.
+- **Clean**: Applies the `preprocess/text_chunk_cleaning.json` prompt to discard noisy data before pipeline processing.
+- **Process**: Runs the `graphrag_pipeline_notes` workflow on cleaned chunks, returning entities, relationships, and discarded-chunk metadata per document.
+- **Configure**: Override the noise threshold via `TEXT_CHUNK_NOISE_THRESHOLD` or the request body.
+- **Inspect**: Set `include_discarded_chunks=false` to omit discarded-chunk summaries from the response.
+
 ## 🛠️ Technology Stack
 
 ### Backend Services
@@ -329,6 +339,13 @@ EXTERNAL_API_TOKEN=your_api_token
 EXTERNAL_API_BASE_URL=https://writing-api.sagewrite.com
 EXTERNAL_API_MAX_SECTIONS=5
 EXTERNAL_API_MIN_TEXT_LENGTH=50
+
+# Notes ingestion & cleaning
+NOTES_API_TOKEN=your_notes_api_token
+NOTES_API_BASE_URL=https://writing-api.sagewrite.com
+NOTES_API_ENDPOINT=/document-vectors/
+NOTES_API_PAGE_SIZE=200
+TEXT_CHUNK_NOISE_THRESHOLD=0.7
 ```
 
 ## 📊 Performance & Scalability

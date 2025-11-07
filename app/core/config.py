@@ -100,6 +100,22 @@ class Settings(BaseSettings):
     EXTERNAL_API_TOKEN: str = Field(default="", env="EXTERNAL_API_TOKEN")
     EXTERNAL_API_MAX_SECTIONS: int = Field(default=5, env="EXTERNAL_API_MAX_SECTIONS")
     EXTERNAL_API_MIN_TEXT_LENGTH: int = Field(default=50, env="EXTERNAL_API_MIN_TEXT_LENGTH")
+
+    # Notes ingestion
+    NOTES_API_BASE_URL: str = Field(
+        default="https://writing-api.sagewrite.com",
+        env="NOTES_API_BASE_URL"
+    )
+    NOTES_API_ENDPOINT: str = Field(
+        default="/document-vectors/",
+        env="NOTES_API_ENDPOINT"
+    )
+    NOTES_API_TOKEN: str = Field(default="", env="NOTES_API_TOKEN")
+    NOTES_API_PAGE_SIZE: int = Field(default=200, env="NOTES_API_PAGE_SIZE")
+    TEXT_CHUNK_NOISE_THRESHOLD: float = Field(
+        default=0.7,
+        env="TEXT_CHUNK_NOISE_THRESHOLD"
+    )
     
     class Config:
         env_file = ".env"

@@ -1,0 +1,29 @@
+{
+  "chunk_previews": [
+    {
+      "document_id": "24f7282c-f9e8-493a-b822-6325252e73f7",
+      "note_id": "6e3b1498-e6e4-4e59-a1d8-180da7225155",
+      "text_preview": "The system returns a single natural-language answer a \u2208 T+, where T+ denotes the set of non-empty free-form text strings.     3.2 Overall Framework Figure 2 presents the structure of MIRAGE, which com- prises four main components:\u2022 Question Decomposer: counters the common weakness of earlier decomposers that emit entity-agnostic, free- form sub-questions; instead, it produces concise splits that a"
+    },
+    {
+      "document_id": "24f7282c-f9e8-493a-b822-6325252e73f7",
+      "note_id": "93e98e3a-2a20-45cd-b169-d1f3add59c8d",
+      "text_preview": "0.37 2.26 0.68 1.76 0.00 0.29 0.00 0.34 0.00 1.05 RAG/1hop + Finetuned-8B 28.87 41.48 19.85 26.01 59.50 69.54 1.83 7.44 3.30 18.61 RAG/2hop + Finetuned-8B 14.93 27.76 8.89 14.56 35.83 52.03 7.70 21.21 3.07 14.04 RAG/3hop + Finetuned-8B 1.54 7.81 0.93 4.36 0.57 2.99 0.43 2.31 0.13 4.23     ToG + Finetuned-8B 5.04 9.43 7.54 9.79 2.23 3.44 0.00 0.12 0.10 2.80 LightRAG + Finetuned-8B 17.38 32.59 13.85"
+    },
+    {
+      "document_id": "24f7282c-f9e8-493a-b822-6325252e73f7",
+      "note_id": "93e98e3a-2a20-45cd-b169-d1f3add59c8d",
+      "text_preview": "To evaluate the comparative effectiveness of these ap- proaches in our task domain, we conduct additional exper- iments, with quantitative results presented in Table 3. The experimental results demonstrate that the PRM grounded in proprietary LLMs achieves statistically significant per- formance improvements over conventional ORMs across all benchmark tasks. These results indicate that when integr"
+    },
+    {
+      "document_id": "24f7282c-f9e8-493a-b822-6325252e73f7",
+      "note_id": "93e98e3a-2a20-45cd-b169-d1f3add59c8d",
+      "text_preview": "At each decision point, the retriever selects actions based on the query intent, avail- able action space, and local graph context, thus supporting adaptive and structure-aware retrieval. In contrast to conven- tional methods that retrieve subgraphs in a single pass, our approach allows for dynamic adjustment of retrieval granu- larity throughout the reasoning process.     Drawing inspiration from"
+    },
+    {
+      "document_id": "3bd22d72-cb41-42b5-9c77-442ae8ed0b7d",
+      "note_id": "7e00c506-8f1a-459e-bfd1-d7fa87fa9434",
+      "text_preview": "Asudeh et al. [1] proposed a method for generating fair ranking     where the user has the flexibility to choose a weight that should be     assigned to each criterion, within limits. The authors developed a     system that is helpful for users in choosing criterion weights so that     the desired fairness can be achieved efficiently and effectively. Celis     et al. [9] presented a theoretical in"
+    }
+  ]
+}
