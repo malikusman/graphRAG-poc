@@ -115,7 +115,7 @@ class NotesService:
     ) -> Dict[str, List[NoteChunk]]:
         """Group note chunks by their document identifier."""
 
-        grouped: Dict[str, List[NoteChunk]] = defaultdict(list)
+        grouped: Dict[str, List[NoteChunk]] = defaultdict[str, List[NoteChunk]](list)
         for note in notes:
             grouped[note.document_id].append(note)
 
