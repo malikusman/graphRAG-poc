@@ -1,40 +1,40 @@
 """
-OpenAI embeddings service for generating vector embeddings
+Embeddings service for generating vector embeddings
+
+Supports multiple providers (OpenAI, Bedrock) via abstraction layer.
 """
 
 import logging
 from typing import List, Optional
-import openai
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 from app.core.config import settings
+from app.core.embedding_provider import get_embedding_provider
 
 logger = logging.getLogger(__name__)
 
 
 class EmbeddingsService:
-    """Service for generating embeddings using OpenAI"""
+    """Service for generating embeddings using provider abstraction"""
     
     def __init__(self):
-        """Initialize OpenAI client"""
-        self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.OPENAI_EMBEDDING_MODEL
-        # Set max tokens based on model
-        if "text-embedding-3-small" in self.model:
-            self.max_tokens = 8191
-            self.dimensions = 1536
-        elif "text-embedding-3-large" in self.model:
-            self.max_tokens = 8191
-            self.dimensions = 3072
-        elif "text-embedding-ada-002" in self.model:
-            self.max_tokens = 8191
-            self.dimensions = 1536
-        else:
-            # Default fallback
-            self.max_tokens = 8191
-            self.dimensions = 1536
+        """Initialize embedding provider"""
+        self.provider = get_embedding_provider()
+        self.model = self.provider.get_model_name()
+        self.dimensions = self.provider.get_embedding_dimensions()
+        
+        # Set max tokens (approximate for text truncation)
+        # Most embedding models handle 8k tokens
+        self.max_tokens = 8191
     
+    @traceable(
+        name="generate_embedding",
+        run_type="embedding",
+        tags=["embedding"]
+    )
     def generate_embedding(self, text: str) -> Optional[List[float]]:
         """
-        Generate embedding for a single text
+        Generate embedding for a single text with LangSmith tracing
         
         Args:
             text: Text to embed
@@ -42,21 +42,37 @@ class EmbeddingsService:
         Returns:
             List of embedding values or None if failed
         """
+        run = get_current_run_tree()
+        if run:
+            run.add_metadata({
+                "model": self.model,
+                "text_length": len(text),
+                "max_tokens": self.max_tokens
+            })
+        
         try:
             # Truncate text if too long
             if len(text) > self.max_tokens * 4:  # Rough character to token ratio
                 text = text[:self.max_tokens * 4]
             
-            response = self.client.embeddings.create(
-                model=self.model,
-                input=text
-            )
+            # Use provider abstraction
+            embedding = self.provider.generate_embedding(text)
             
-            embedding = response.data[0].embedding
-            logger.debug(f"Generated embedding with {len(embedding)} dimensions")
+            # Add output metadata
+            if run and embedding:
+                run.add_metadata({
+                    "embedding_dimensions": len(embedding),
+                    "provider": settings.EMBEDDING_PROVIDER,
+                    "model": self.model
+                })
+            
+            if embedding:
+                logger.debug(f"Generated embedding with {len(embedding)} dimensions using {settings.EMBEDDING_PROVIDER}")
             return embedding
             
         except Exception as e:
+            if run:
+                run.add_error(e)
             logger.error(f"Error generating embedding: {str(e)}")
             return None
     
@@ -70,13 +86,8 @@ class EmbeddingsService:
         Returns:
             List of embeddings (None for failed ones)
         """
-        embeddings = []
-        
-        for text in texts:
-            embedding = self.generate_embedding(text)
-            embeddings.append(embedding)
-        
-        return embeddings
+        # Use provider's batch method if available
+        return self.provider.generate_embeddings_batch(texts)
     
     def generate_section_embedding(self, section_text: str, section_title: str = "") -> Optional[List[float]]:
         """
@@ -90,11 +101,17 @@ class EmbeddingsService:
             Embedding vector or None if failed
         """
         try:
-            # Combine title and text for better context
-            if section_title:
-                combined_text = f"{section_title}: {section_text}"
-            else:
+            # Combine title and text for better context using the format specified in the plan
+            if section_title and section_text:
+                combined_text = f"Title: {section_title}. Text: {section_text}"
+            elif section_title:
+                combined_text = f"Title: {section_title}."
+            elif section_text:
                 combined_text = section_text
+            else:
+                # Both are empty, return None
+                logger.warning("Both title and text are empty, skipping embedding generation")
+                return None
             
             return self.generate_embedding(combined_text)
             
@@ -109,3 +126,60 @@ class EmbeddingsService:
     def get_model_name(self) -> str:
         """Get the embedding model name"""
         return self.model
+    
+    @traceable(
+        name="generate_section_embeddings_batch",
+        run_type="embedding",
+        tags=["embedding", "batch", "sections"]
+    )
+    def generate_section_embeddings_batch(self, sections: List[dict]) -> List[dict]:
+        """
+        Generate embeddings for multiple sections with title and text combination
+        
+        Args:
+            sections: List of section dictionaries with 'title' and 'text' keys
+            
+        Returns:
+            List of section dictionaries with populated 'embeddings' field
+        """
+        run = get_current_run_tree()
+        if run:
+            run.add_metadata({
+                "num_sections": len(sections),
+                "batch_operation": True
+            })
+        
+        processed_sections = []
+        
+        for section in sections:
+            # Create a copy to avoid modifying the original
+            processed_section = section.copy()
+            
+            # Check if text is empty or None
+            text = section.get('text', '')
+            title = section.get('title', '')
+            
+            if not text or not text.strip():
+                # Keep empty embeddings array for empty text as specified in requirements
+                processed_section['embeddings'] = []
+                logger.debug(f"Skipping embedding generation for section {section.get('section_id', 'unknown')} - empty text")
+            else:
+                # Generate embedding with title and text combination
+                embedding = self.generate_section_embedding(text, title)
+                if embedding:
+                    processed_section['embeddings'] = embedding
+                else:
+                    processed_section['embeddings'] = []
+                    logger.warning(f"Failed to generate embedding for section {section.get('section_id', 'unknown')}")
+            
+            processed_sections.append(processed_section)
+        
+        # Add output metadata
+        if run:
+            successful = sum(1 for s in processed_sections if s.get('embeddings'))
+            run.add_metadata({
+                "successful_embeddings": successful,
+                "failed_embeddings": len(sections) - successful
+            })
+        
+        return processed_sections

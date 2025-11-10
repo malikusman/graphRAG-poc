@@ -1,5 +1,7 @@
 # SageWrite GraphRAG
 
+[![CI Pipeline](https://github.com/malikusman/graphRAG-poc/actions/workflows/ci.yml/badge.svg)](https://github.com/malikusman/graphRAG-poc/actions/workflows/ci.yml)
+
 A comprehensive Graph-based Retrieval-Augmented Generation system for scientific papers, built with FastAPI, LangGraph, and MongoDB. This system processes documents through an 8-node pipeline to extract entities and relationships, builds a knowledge graph, and provides intelligent search capabilities through multiple retrieval strategies.
 
 ## 🎯 What This Application Does
@@ -166,6 +168,16 @@ The core of the system is an 8-node LangGraph pipeline that processes documents 
 
 **Background Processing**: API data processing runs asynchronously using Celery tasks, allowing for scalable processing of large datasets.
 
+#### Notes → Entity Relationships API
+
+The `/api/v1/notes/entity-relationships` endpoint fetches raw note chunks from the external `document-vectors` API, cleans them with an LLM-powered prompt, and runs the GraphRAG pipeline per `document_id`.
+
+- **Fetch**: Uses `NOTES_API_*` settings to authenticate and page through note chunks.
+- **Clean**: Applies the `preprocess/text_chunk_cleaning.json` prompt to discard noisy data before pipeline processing.
+- **Process**: Runs the `graphrag_pipeline_notes` workflow on cleaned chunks, returning entities, relationships, and discarded-chunk metadata per document.
+- **Configure**: Override the noise threshold via `TEXT_CHUNK_NOISE_THRESHOLD` or the request body.
+- **Inspect**: Set `include_discarded_chunks=false` to omit discarded-chunk summaries from the response.
+
 ## 🛠️ Technology Stack
 
 ### Backend Services
@@ -177,9 +189,39 @@ The core of the system is an 8-node LangGraph pipeline that processes documents 
 - **Redis**: In-memory data store used as message broker for Celery and caching layer for improved performance
 
 ### AI/ML Components
-- **OpenAI GPT-4**: Large language model for entity extraction, relationship identification, and query analysis
-- **OpenAI Embeddings**: Text embedding model (text-embedding-3-small) for semantic similarity calculations
+- **LLM Providers**: Supports multiple providers via abstraction layer
+  - **OpenAI**: GPT-4, GPT-4o-mini (default)
+  - **Amazon Bedrock**: Claude models via langchain-aws
+  - **Google Vertex AI**: Gemini models via custom wrapper (see [VERTEX_AI_SETUP.md](VERTEX_AI_SETUP.md))
+- **Embedding Providers**: Supports multiple embedding models
+  - **OpenAI**: text-embedding-3-small (default)
+  - **Amazon Bedrock**: Titan embeddings
+  - **Google Vertex AI**: textembedding-gecko models
 - **NumPy**: Numerical computing library for vector similarity calculations and mathematical operations
+
+### Provider Switching
+The application uses a provider abstraction layer that allows seamless switching between different LLM and embedding providers. Switch providers by setting environment variables:
+
+```bash
+# Use Bedrock for both LLM and embeddings
+LLM_PROVIDER=bedrock
+EMBEDDING_PROVIDER=bedrock
+
+# Or mix and match (e.g., Bedrock for LLM, OpenAI for embeddings)
+LLM_PROVIDER=bedrock
+EMBEDDING_PROVIDER=openai
+
+# Use Vertex AI
+LLM_PROVIDER=vertexai
+EMBEDDING_PROVIDER=vertexai
+```
+
+See `env.example` for complete configuration options for each provider.
+
+**Provider Compatibility Notes:**
+- **AWS Bedrock**: Uses `langchain-aws` package (v0.2.35+) which internally manages `boto3`. Supports multiple authentication methods (env vars, IAM roles, `~/.aws/credentials`). Model access must be enabled in Bedrock console.
+- **Google Vertex AI**: Uses custom wrapper with `google-cloud-aiplatform` SDK. Requires service account JSON key or Application Default Credentials. Models must be enabled in Vertex AI Model Garden for API access.
+- Both providers include comprehensive error handling with specific messages for common issues (authentication, model access, region configuration).
 
 ## 🎛️ Core Services
 
@@ -233,6 +275,22 @@ Generates vector embeddings using OpenAI's text-embedding-3-small model. Handles
 ## 🧪 Testing
 
 ### Run Tests
+
+**Unit Tests:**
+```bash
+poetry run pytest
+```
+
+**Provider Integration Tests:**
+```bash
+# Test Vertex AI integration
+poetry run python test_vertexai_integration.py
+
+# Test AWS Bedrock integration
+poetry run python test_bedrock_integration.py
+```
+
+**Additional Tests:**
 ```bash
 # Backend tests
 cd app
@@ -240,7 +298,6 @@ poetry run pytest
 
 # Test GraphRAG pipeline with single section
 python test_single_section_db.py
-
 ```
 
 ## 🚀 Deployment
@@ -258,11 +315,37 @@ OPENAI_API_KEY=your_openai_api_key
 MONGODB_URL=mongodb://localhost:27017
 REDIS_URL=redis://localhost:6379
 
+# LLM & Embedding Provider Selection
+# Default: Both use OpenAI. Set these to switch providers:
+LLM_PROVIDER=openai              # Options: "openai", "bedrock", "vertexai"
+EMBEDDING_PROVIDER=openai         # Options: "openai", "bedrock", "vertexai"
+
+# AWS Bedrock Configuration (if using Bedrock)
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+BEDROCK_REGION=us-east-1
+BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-5-20250929-v1:0
+BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
+
+# Google Vertex AI Configuration (if using Vertex AI)
+VERTEX_AI_PROJECT_ID=your-google-cloud-project-id
+VERTEX_AI_LOCATION=us-central1
+VERTEX_AI_CREDENTIALS_PATH=/path/to/service-account-key.json
+VERTEX_AI_MODEL_ID=gemini-pro
+VERTEX_AI_EMBEDDING_MODEL_ID=textembedding-gecko@003
+
 # Optional
 EXTERNAL_API_TOKEN=your_api_token
 EXTERNAL_API_BASE_URL=https://writing-api.sagewrite.com
 EXTERNAL_API_MAX_SECTIONS=5
 EXTERNAL_API_MIN_TEXT_LENGTH=50
+
+# Notes ingestion & cleaning
+NOTES_API_TOKEN=your_notes_api_token
+NOTES_API_BASE_URL=https://writing-api.sagewrite.com
+NOTES_API_ENDPOINT=/document-vectors/
+NOTES_API_PAGE_SIZE=200
+TEXT_CHUNK_NOISE_THRESHOLD=0.7
 ```
 
 ## 📊 Performance & Scalability

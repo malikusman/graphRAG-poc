@@ -4,13 +4,13 @@ ContradictionResolver service for resolving detected contradictions in relations
 
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 import json
 from datetime import datetime
 
 from app.core.config import settings
+from app.core.llm_provider import get_llm
 from app.configs.schemas import load_prompt
 from app.models.relationships import Relationship
 
@@ -22,11 +22,8 @@ class ContradictionResolver:
     
     def __init__(self):
         """Initialize the resolver with LLM and prompts"""
-        self.llm = ChatOpenAI(
-            model=settings.OPENAI_MODEL,
-            temperature=0.1,
-            api_key=settings.OPENAI_API_KEY
-        )
+        # Use LLM provider abstraction to support both OpenAI and Bedrock
+        self.llm = get_llm(temperature=0.1)
         
         # Load contradiction resolution prompt
         self.prompt_config = load_prompt("contradiction_resolution", "reduce")

@@ -98,19 +98,19 @@ services:
       - sagewrite-network
 
   # React Frontend
-  frontend:
-    build: ./frontend
-    container_name: sagewrite-frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000
-    depends_on:
-      app:
-        condition: service_healthy
-    networks:
-      - sagewrite-network
+  # frontend:
+  #   build: ./frontend
+  #   container_name: sagewrite-frontend
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - REACT_APP_API_URL=http://localhost:8000
+  #   depends_on:
+  #     app:
+  #       condition: service_healthy
+  #   networks:
+  #     - sagewrite-network
 
 volumes:
   mongodb_data:

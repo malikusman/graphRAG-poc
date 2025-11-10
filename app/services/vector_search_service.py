@@ -14,6 +14,8 @@ import time
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import numpy as np
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 
 from app.core.database import AsyncIOMotorDatabase
 from app.services.embeddings import EmbeddingsService
@@ -94,6 +96,7 @@ class VectorSearchService:
         
         logger.info("VectorSearchService initialized")
     
+    @traceable(name="vector_search", tags=["retrieval", "vector_similarity"])
     async def search(
         self,
         query: str,
@@ -140,6 +143,14 @@ class VectorSearchService:
             - 1,000 documents: ~200ms
             - 10,000 documents: ~1-2s
         """
+        run = get_current_run_tree()
+        if run:
+            run.add_metadata({
+                "query": query,
+                "limit": limit,
+                "min_score": min_score
+            })
+        
         start_time = time.time()
         
         try:
@@ -360,6 +371,14 @@ class VectorSearchService:
                 results.append(result)
             
             logger.debug(f"Calculated {len(results)} similarity scores")
+            
+            # Add output metadata
+            if run:
+                run.add_metadata({
+                    "results_found": len(results),
+                    "avg_similarity_score": np.mean([r.score for r in results]) if results else 0
+                })
+            
             return results
             
         except Exception as e:

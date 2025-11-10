@@ -9,9 +9,6 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langsmith import traceable
 from langsmith.run_helpers import get_current_run_tree
-import json
-
-from app.core.config import settings
 from app.core.llm_provider import get_llm
 from app.configs.schemas import load_prompt, ENTITY_CATEGORIES, RELATIONSHIP_TYPES
 from app.services.entity_canonicalizer import EntityCanonicalizer
@@ -23,11 +20,12 @@ from app.utils.math_utils import calculate_noisy_or_strength
 
 logger = logging.getLogger(__name__)
 
-
 class GraphRAGState(TypedDict):
     """State for GraphRAG pipeline"""
     document_id: str
-    sections: List[Dict[str, Any]]
+    text_chunks: List[Dict[str, Any]]
+    filtered_chunks: List[Dict[str, Any]]
+    discarded_chunks: List[Dict[str, Any]]
     temp_entities: List[Dict[str, Any]]
     temp_relationships: List[Dict[str, Any]]
     doc_entities: List[Dict[str, Any]]
@@ -70,7 +68,7 @@ class GraphRAGPipeline:
         # Create output parsers
         self.entity_parser = JsonOutputParser()
         self.relationship_parser = JsonOutputParser()
-        
+
         # Initialize Reduce phase services
         self.entity_canonicalizer = EntityCanonicalizer()
         self.contradiction_detector = ContradictionDetector()
@@ -80,6 +78,28 @@ class GraphRAGPipeline:
         
         # Build the graph
         self.graph = self._build_graph()
+
+    def _get_chunk_text(self, chunk: Dict[str, Any]) -> str:
+        """Retrieve text content from a chunk regardless of key naming."""
+        return (
+            chunk.get("text")
+            or chunk.get("text_chunk")
+            or chunk.get("content")
+            or chunk.get("body")
+            or ""
+        )
+
+    def _get_chunk_id(self, chunk: Dict[str, Any]) -> str:
+        """Retrieve a stable identifier for a chunk."""
+        return str(
+            chunk.get("chunk_id")
+            or chunk.get("note_id")
+            or chunk.get("_id")
+            or chunk.get("id")
+            or chunk.get("uuid")
+            or chunk.get("_chunk_internal_id")
+            or ""
+        )
     
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph pipeline"""
@@ -110,13 +130,15 @@ class GraphRAGPipeline:
     
     @traceable(name="map_entities", tags=["map", "entity_extraction"])
     async def _map_entities(self, state: GraphRAGState) -> GraphRAGState:
-        """Map phase: Extract entities from sections"""
+        """Map phase: Extract entities from cleaned text chunks"""
         run = get_current_run_tree()
+        chunks = state.get("filtered_chunks") or state.get("text_chunks", [])
+
         if run:
             run.add_metadata({
                 "node": "map_entities",
                 "document_id": state["document_id"],
-                "num_sections": len(state["sections"])
+                "num_chunks": len(chunks)
             })
         
         logger.info(f"Starting entity extraction for document {state['document_id']}")
@@ -124,29 +146,35 @@ class GraphRAGPipeline:
         temp_entities = []
         errors = []
         
-        for section in state["sections"]:
+        for chunk in chunks:
+            chunk_id = self._get_chunk_id(chunk)
+            chunk_text = self._get_chunk_text(chunk)
             try:
                 # Create entity extraction chain
                 entity_chain = self.entity_prompt | self.llm | self.entity_parser
                 
                 # Extract entities from section
                 result = await entity_chain.ainvoke({
-                    "section_text": section["text"],
-                    "section_title": section.get("title", "")
+                    "section_text": chunk_text,
+                    "section_title": chunk.get("title", "")
                 })
                 
                 # Process extracted entities
                 if "entities" in result:
                     for entity in result["entities"]:
                         entity["document_id"] = state["document_id"]
-                        entity["section_id"] = str(section["_id"])
-                        entity["provenance"] = entity.get("provenance", section["text"][:200])
+                        entity["section_id"] = chunk_id
+                        entity["provenance"] = entity.get("provenance", chunk_text[:200])
                         temp_entities.append(entity)
                 
-                logger.debug(f"Extracted {len(result.get('entities', []))} entities from section {section['_id']}")
+                logger.debug(
+                    "Extracted %s entities from chunk %s",
+                    len(result.get("entities", [])),
+                    chunk_id or "<unknown>"
+                )
                 
             except Exception as e:
-                error_msg = f"Error extracting entities from section {section['_id']}: {str(e)}"
+                error_msg = f"Error extracting entities from chunk {chunk_id or 'unknown'}: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
         
@@ -165,13 +193,15 @@ class GraphRAGPipeline:
     
     @traceable(name="map_relationships", tags=["map", "relationship_extraction"])
     async def _map_relationships(self, state: GraphRAGState) -> GraphRAGState:
-        """Map phase: Extract relationships from sections"""
+        """Map phase: Extract relationships from cleaned text chunks"""
         run = get_current_run_tree()
+        chunks = state.get("filtered_chunks") or state.get("text_chunks", [])
+
         if run:
             run.add_metadata({
                 "node": "map_relationships",
                 "document_id": state["document_id"],
-                "num_sections": len(state["sections"])
+                "num_chunks": len(chunks)
             })
         
         logger.info(f"Starting relationship extraction for document {state['document_id']}")
@@ -179,10 +209,11 @@ class GraphRAGPipeline:
         temp_relationships = []
         errors = []
         
-        for section in state["sections"]:
+        for chunk in chunks:
             try:
                 # Get entities from this section
-                section_entities = [e for e in state["temp_entities"] if e["section_id"] == str(section["_id"])]
+                chunk_id = self._get_chunk_id(chunk)
+                section_entities = [e for e in state["temp_entities"] if e["section_id"] == chunk_id]
                 
                 if len(section_entities) < 2:
                     continue  # Need at least 2 entities for relationships
@@ -196,8 +227,8 @@ class GraphRAGPipeline:
                 
                 # Extract relationships from section
                 result = await relationship_chain.ainvoke({
-                    "section_text": section["text"],
-                    "section_title": section.get("title", ""),
+                    "section_text": self._get_chunk_text(chunk),
+                    "section_title": chunk.get("title", ""),
                     "entities_list": entities_text
                 })
                 
@@ -205,14 +236,18 @@ class GraphRAGPipeline:
                 if "relationships" in result:
                     for rel in result["relationships"]:
                         rel["document_id"] = state["document_id"]
-                        rel["section_id"] = str(section["_id"])
-                        rel["provenance"] = rel.get("provenance", section["text"][:200])
+                        rel["section_id"] = chunk_id
+                        rel["provenance"] = rel.get("provenance", self._get_chunk_text(chunk)[:200])
                         temp_relationships.append(rel)
                 
-                logger.debug(f"Extracted {len(result.get('relationships', []))} relationships from section {section['_id']}")
+                logger.debug(
+                    "Extracted %s relationships from chunk %s",
+                    len(result.get("relationships", [])),
+                    chunk_id or "<unknown>"
+                )
                 
             except Exception as e:
-                error_msg = f"Error extracting relationships from section {section['_id']}: {str(e)}"
+                error_msg = f"Error extracting relationships from chunk {chunk_id or 'unknown'}: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
         
@@ -456,11 +491,12 @@ class GraphRAGPipeline:
                 relationships.append(relationship)
             
             # Prepare context information for enhanced analysis
+            context_chunks = state.get("filtered_chunks") or state.get("text_chunks", [])
             context_info = {
                 "document_id": state["document_id"],
                 "publication_year": None,  # Could be extracted from document metadata
                 "paper_source": "unknown",  # Could be extracted from document metadata
-                "section_types": list(set([section.get("type", "unknown") for section in state.get("sections", [])]))
+                "section_types": list({chunk.get("type", "unknown") for chunk in context_chunks})
             }
             
             # Process enhanced contradiction detection with resolver
@@ -686,13 +722,19 @@ class GraphRAGPipeline:
         tags=["pipeline", "document_processing"],
         metadata={"version": "1.0"}
     )
-    async def process_document(self, document_id: str, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def process_document(
+        self,
+        document_id: str,
+        text_chunks: List[Dict[str, Any]],
+        filtered_chunks: Optional[List[Dict[str, Any]]] = None,
+        discarded_chunks: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
         """
         Process a document through the GraphRAG pipeline with global graph integration
         
         Args:
             document_id: Document ID
-            sections: List of sections to process
+            text_chunks: List of text chunks to process
             
         Returns:
             Processing results
@@ -702,7 +744,7 @@ class GraphRAGPipeline:
         if run:
             run.add_metadata({
                 "document_id": document_id,
-                "num_sections": len(sections),
+                "num_chunks": len(filtered_chunks) if filtered_chunks is not None else len(text_chunks),
                 "pipeline_stage": "initialization"
             })
         
@@ -725,9 +767,18 @@ class GraphRAGPipeline:
             global_relationships = []
         
         # Initialize state with global graph data
+        filtered_chunks = filtered_chunks or text_chunks
+        discarded_chunks = discarded_chunks or []
+
+        text_chunks_list = list(text_chunks)
+        filtered_chunks_list = list(filtered_chunks)
+        discarded_chunks_list = list(discarded_chunks)
+
         initial_state = GraphRAGState(
             document_id=document_id,
-            sections=sections,
+            text_chunks=text_chunks_list,
+            filtered_chunks=filtered_chunks_list,
+            discarded_chunks=discarded_chunks_list,
             temp_entities=[],
             temp_relationships=[],
             doc_entities=[],
@@ -765,6 +816,7 @@ class GraphRAGPipeline:
                 "consolidated_relationships": len(result["consolidated_relationships"]),
                 "consolidation_summary": result["consolidation_summary"],
                 "global_processing_results": result.get("global_processing_results", {}),
+                "discarded_chunks": result.get("discarded_chunks", []),
                 "errors": result["errors"]
             }
             

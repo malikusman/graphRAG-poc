@@ -1,12 +1,12 @@
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 import json
 import re
 
 from app.core.config import settings
+from app.core.llm_provider import get_llm
 from app.configs.schemas import load_prompt
 from app.database.models import EntityCollection
 from app.models.entities import Entity, EntityResponse
@@ -19,11 +19,8 @@ class EntityCanonicalizer:
     
     def __init__(self):
         """Initialize the canonicalizer with LLM and prompts"""
-        self.llm = ChatOpenAI(
-            model=settings.OPENAI_MODEL,
-            temperature=0.1,
-            api_key=settings.OPENAI_API_KEY
-        )
+        # Use LLM provider abstraction to support both OpenAI and Bedrock
+        self.llm = get_llm(temperature=0.1)
         
         # Load enhanced canonicalization prompt
         self.prompt_config = load_prompt("entity_canonicalization", "reduce")

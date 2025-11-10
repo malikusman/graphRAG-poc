@@ -1,18 +1,17 @@
 """
-LangGraph pipeline for GraphRAG Map-Combine-Reduce processing
+Enhanced LangGraph pipeline for GraphRAG Map-Combine-Reduce processing
+with detailed logging for each node
 """
 
 import logging
 from typing import TypedDict, List, Dict, Any, Optional
 from langgraph.graph import StateGraph, END
+from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from langsmith import traceable
-from langsmith.run_helpers import get_current_run_tree
 import json
 
 from app.core.config import settings
-from app.core.llm_provider import get_llm
 from app.configs.schemas import load_prompt, ENTITY_CATEGORIES, RELATIONSHIP_TYPES
 from app.services.entity_canonicalizer import EntityCanonicalizer
 from app.services.contradiction_detector import ContradictionDetector
@@ -47,13 +46,16 @@ class GraphRAGState(TypedDict):
     errors: List[str]
 
 
-class GraphRAGPipeline:
-    """Main GraphRAG processing pipeline using LangGraph"""
+class EnhancedGraphRAGPipeline:
+    """Enhanced GraphRAG processing pipeline with detailed logging"""
     
     def __init__(self):
         """Initialize the pipeline with LLM and prompts"""
-        # Use LLM provider abstraction to support both OpenAI and Bedrock
-        self.llm = get_llm(temperature=0.1)
+        self.llm = ChatOpenAI(
+            model=settings.OPENAI_MODEL,
+            temperature=0.1,
+            api_key=settings.OPENAI_API_KEY
+        )
         
         # Load prompts
         self.entity_prompt_config = load_prompt("entity_extraction", "map")
@@ -93,7 +95,7 @@ class GraphRAGPipeline:
         workflow.add_node("reduce_entities", self._reduce_entities)
         workflow.add_node("reduce_relationships", self._reduce_relationships)
         workflow.add_node("consolidate_relationships", self._consolidate_relationships)
-        workflow.add_node("update_global_graph", self._update_global_graph)  # NEW: Global graph integration
+        workflow.add_node("update_global_graph", self._update_global_graph)
         
         # Add edges
         workflow.set_entry_point("map_entities")
@@ -103,28 +105,57 @@ class GraphRAGPipeline:
         workflow.add_edge("combine_relationships", "reduce_entities")
         workflow.add_edge("reduce_entities", "reduce_relationships")
         workflow.add_edge("reduce_relationships", "consolidate_relationships")
-        workflow.add_edge("consolidate_relationships", "update_global_graph")  # NEW: Global graph update
-        workflow.add_edge("update_global_graph", END)  # NEW: End after global graph update
+        workflow.add_edge("consolidate_relationships", "update_global_graph")
+        workflow.add_edge("update_global_graph", END)
         
         return workflow.compile()
     
-    @traceable(name="map_entities", tags=["map", "entity_extraction"])
-    async def _map_entities(self, state: GraphRAGState) -> GraphRAGState:
-        """Map phase: Extract entities from sections"""
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "node": "map_entities",
-                "document_id": state["document_id"],
-                "num_sections": len(state["sections"])
-            })
+    def _log_entities_detailed(self, entities: List[Dict[str, Any]], title: str):
+        """Log entities with detailed information"""
+        logger.info(f"\n{'='*60}")
+        logger.info(f"📋 {title} ({len(entities)} total)")
+        logger.info(f"{'='*60}")
         
-        logger.info(f"Starting entity extraction for document {state['document_id']}")
+        for i, entity in enumerate(entities, 1):
+            logger.info(f"{i}. {entity.get('entity_name', 'N/A')}")
+            logger.info(f"   Type: {entity.get('entity_type', 'N/A')}")
+            logger.info(f"   Category: {entity.get('entity_category', 'N/A')}")
+            logger.info(f"   Description: {entity.get('description', entity.get('entity_description', 'N/A'))[:150]}...")
+            logger.info(f"   Frequency: {entity.get('frequency', 1)}")
+            logger.info(f"   Aliases: {entity.get('aliases', [])}")
+            logger.info(f"   Section IDs: {entity.get('section_ids', [])}")
+            logger.info(f"   Document ID: {entity.get('document_id', 'N/A')}")
+            logger.info("")
+    
+    def _log_relationships_detailed(self, relationships: List[Dict[str, Any]], title: str):
+        """Log relationships with detailed information"""
+        logger.info(f"\n{'='*60}")
+        logger.info(f"🔗 {title} ({len(relationships)} total)")
+        logger.info(f"{'='*60}")
+        
+        for i, rel in enumerate(relationships, 1):
+            logger.info(f"{i}. {rel.get('source_entity', 'N/A')} -> {rel.get('target_entity', 'N/A')}")
+            logger.info(f"   Type: {rel.get('relationship_type', 'N/A')}")
+            logger.info(f"   Strength: {rel.get('relationship_strength', 'N/A')}")
+            logger.info(f"   Description: {rel.get('description', 'N/A')[:150]}...")
+            logger.info(f"   Section IDs: {rel.get('section_ids', [])}")
+            logger.info(f"   Document ID: {rel.get('document_id', 'N/A')}")
+            logger.info("")
+    
+    async def _map_entities(self, state: GraphRAGState) -> GraphRAGState:
+        """Map phase: Extract entities from sections with detailed logging"""
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 NODE 1: MAP ENTITIES")
+        logger.info(f"{'='*80}")
+        logger.info(f"Processing {len(state['sections'])} sections for entity extraction...")
         
         temp_entities = []
         errors = []
         
-        for section in state["sections"]:
+        for section_idx, section in enumerate(state["sections"], 1):
+            logger.info(f"\n📄 Processing Section {section_idx}: {section.get('title', 'Untitled')}")
+            logger.info(f"Text length: {len(section['text'])} characters")
+            
             try:
                 # Create entity extraction chain
                 entity_chain = self.entity_prompt | self.llm | self.entity_parser
@@ -135,15 +166,23 @@ class GraphRAGPipeline:
                     "section_title": section.get("title", "")
                 })
                 
+                logger.info(f"Raw LLM result: {json.dumps(result, indent=2)}")
+                
                 # Process extracted entities
                 if "entities" in result:
+                    section_entities = []
                     for entity in result["entities"]:
                         entity["document_id"] = state["document_id"]
                         entity["section_id"] = str(section["_id"])
                         entity["provenance"] = entity.get("provenance", section["text"][:200])
                         temp_entities.append(entity)
-                
-                logger.debug(f"Extracted {len(result.get('entities', []))} entities from section {section['_id']}")
+                        section_entities.append(entity)
+                    
+                    logger.info(f"✅ Extracted {len(section_entities)} entities from this section:")
+                    for entity in section_entities:
+                        logger.info(f"  - {entity.get('entity_name', 'N/A')} ({entity.get('entity_type', 'N/A')})")
+                else:
+                    logger.warning(f"⚠️ No entities found in section {section['_id']}")
                 
             except Exception as e:
                 error_msg = f"Error extracting entities from section {section['_id']}: {str(e)}"
@@ -153,39 +192,36 @@ class GraphRAGPipeline:
         state["temp_entities"] = temp_entities
         state["errors"].extend(errors)
         
-        # Add output metadata
-        if run:
-            run.add_metadata({
-                "entities_extracted": len(temp_entities),
-                "errors_count": len(errors)
-            })
+        # Log all extracted entities
+        self._log_entities_detailed(temp_entities, "ALL EXTRACTED ENTITIES")
         
-        logger.info(f"Entity extraction complete: {len(temp_entities)} entities extracted")
+        logger.info(f"\n✅ MAP ENTITIES COMPLETE: {len(temp_entities)} entities extracted")
         return state
     
-    @traceable(name="map_relationships", tags=["map", "relationship_extraction"])
     async def _map_relationships(self, state: GraphRAGState) -> GraphRAGState:
-        """Map phase: Extract relationships from sections"""
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "node": "map_relationships",
-                "document_id": state["document_id"],
-                "num_sections": len(state["sections"])
-            })
-        
-        logger.info(f"Starting relationship extraction for document {state['document_id']}")
+        """Map phase: Extract relationships from sections with detailed logging"""
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 NODE 2: MAP RELATIONSHIPS")
+        logger.info(f"{'='*80}")
+        logger.info(f"Processing {len(state['sections'])} sections for relationship extraction...")
         
         temp_relationships = []
         errors = []
         
-        for section in state["sections"]:
+        for section_idx, section in enumerate(state["sections"], 1):
+            logger.info(f"\n📄 Processing Section {section_idx}: {section.get('title', 'Untitled')}")
+            
             try:
                 # Get entities from this section
                 section_entities = [e for e in state["temp_entities"] if e["section_id"] == str(section["_id"])]
                 
+                logger.info(f"Found {len(section_entities)} entities in this section:")
+                for entity in section_entities:
+                    logger.info(f"  - {entity.get('entity_name', 'N/A')} ({entity.get('entity_type', 'N/A')})")
+                
                 if len(section_entities) < 2:
-                    continue  # Need at least 2 entities for relationships
+                    logger.warning(f"⚠️ Need at least 2 entities for relationships, skipping section {section['_id']}")
+                    continue
                 
                 # Create entities list for prompt
                 entities_list = [f"- {e['entity_name']} ({e['entity_type']})" for e in section_entities]
@@ -201,15 +237,23 @@ class GraphRAGPipeline:
                     "entities_list": entities_text
                 })
                 
+                logger.info(f"Raw LLM result: {json.dumps(result, indent=2)}")
+                
                 # Process extracted relationships
                 if "relationships" in result:
+                    section_relationships = []
                     for rel in result["relationships"]:
                         rel["document_id"] = state["document_id"]
                         rel["section_id"] = str(section["_id"])
                         rel["provenance"] = rel.get("provenance", section["text"][:200])
                         temp_relationships.append(rel)
-                
-                logger.debug(f"Extracted {len(result.get('relationships', []))} relationships from section {section['_id']}")
+                        section_relationships.append(rel)
+                    
+                    logger.info(f"✅ Extracted {len(section_relationships)} relationships from this section:")
+                    for rel in section_relationships:
+                        logger.info(f"  - {rel.get('source_entity', 'N/A')} -> {rel.get('target_entity', 'N/A')} ({rel.get('relationship_type', 'N/A')})")
+                else:
+                    logger.warning(f"⚠️ No relationships found in section {section['_id']}")
                 
             except Exception as e:
                 error_msg = f"Error extracting relationships from section {section['_id']}: {str(e)}"
@@ -219,28 +263,18 @@ class GraphRAGPipeline:
         state["temp_relationships"] = temp_relationships
         state["errors"].extend(errors)
         
-        # Add output metadata
-        if run:
-            run.add_metadata({
-                "relationships_extracted": len(temp_relationships),
-                "errors_count": len(errors)
-            })
+        # Log all extracted relationships
+        self._log_relationships_detailed(temp_relationships, "ALL EXTRACTED RELATIONSHIPS")
         
-        logger.info(f"Relationship extraction complete: {len(temp_relationships)} relationships extracted")
+        logger.info(f"\n✅ MAP RELATIONSHIPS COMPLETE: {len(temp_relationships)} relationships extracted")
         return state
     
-    @traceable(name="combine_entities", tags=["combine", "entity_processing"])
     async def _combine_entities(self, state: GraphRAGState) -> GraphRAGState:
-        """Combine phase: Merge entities within document"""
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "node": "combine_entities",
-                "document_id": state["document_id"],
-                "temp_entities_count": len(state["temp_entities"])
-            })
-        
-        logger.info(f"Starting entity combination for document {state['document_id']}")
+        """Combine phase: Merge entities within document with detailed logging"""
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 NODE 3: COMBINE ENTITIES")
+        logger.info(f"{'='*80}")
+        logger.info(f"Combining {len(state['temp_entities'])} extracted entities...")
         
         # Group entities by name and type
         entity_groups = {}
@@ -249,6 +283,10 @@ class GraphRAGPipeline:
             if key not in entity_groups:
                 entity_groups[key] = []
             entity_groups[key].append(entity)
+        
+        logger.info(f"Found {len(entity_groups)} unique entity groups:")
+        for (name, entity_type), entities in entity_groups.items():
+            logger.info(f"  - {name} ({entity_type}): {len(entities)} instances")
         
         # Merge entities
         doc_entities = []
@@ -278,28 +316,18 @@ class GraphRAGPipeline:
         
         state["doc_entities"] = doc_entities
         
-        # Add output metadata
-        if run:
-            run.add_metadata({
-                "unique_entities": len(doc_entities),
-                "reduction_ratio": len(doc_entities) / max(len(state["temp_entities"]), 1)
-            })
+        # Log combined entities
+        self._log_entities_detailed(doc_entities, "COMBINED ENTITIES")
         
-        logger.info(f"Entity combination complete: {len(doc_entities)} unique entities")
+        logger.info(f"\n✅ COMBINE ENTITIES COMPLETE: {len(doc_entities)} unique entities")
         return state
     
-    @traceable(name="combine_relationships", tags=["combine", "relationship_processing"])
     async def _combine_relationships(self, state: GraphRAGState) -> GraphRAGState:
-        """Combine phase: Merge relationships within document"""
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "node": "combine_relationships",
-                "document_id": state["document_id"],
-                "temp_relationships_count": len(state["temp_relationships"])
-            })
-        
-        logger.info(f"Starting relationship combination for document {state['document_id']}")
+        """Combine phase: Merge relationships within document with detailed logging"""
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 NODE 4: COMBINE RELATIONSHIPS")
+        logger.info(f"{'='*80}")
+        logger.info(f"Combining {len(state['temp_relationships'])} extracted relationships...")
         
         # Group relationships by source, target, and type
         rel_groups = {}
@@ -309,6 +337,10 @@ class GraphRAGPipeline:
                 rel_groups[key] = []
             rel_groups[key].append(rel)
         
+        logger.info(f"Found {len(rel_groups)} unique relationship groups:")
+        for (source, target, rel_type), relationships in rel_groups.items():
+            logger.info(f"  - {source} -> {target} ({rel_type}): {len(relationships)} instances")
+        
         # Merge relationships using noisy-OR
         doc_relationships = []
         for (source, target, rel_type), relationships in rel_groups.items():
@@ -316,16 +348,18 @@ class GraphRAGPipeline:
             strengths = [rel["relationship_strength"] for rel in relationships]
             noisy_or_strength = calculate_noisy_or_strength(strengths)
             
+            logger.info(f"Merging {source} -> {target} ({rel_type}):")
+            logger.info(f"  Individual strengths: {strengths}")
+            logger.info(f"  Noisy-OR result: {noisy_or_strength}")
+            
             # Combine descriptions
             descriptions = [rel["description"] for rel in relationships]
             combined_description = "; ".join(set(descriptions))
             
             # Collect section_ids and paper_ids from all relationships
-            # Note: extracted relationships have "section_id" (singular) and "document_id"
             section_ids = []
             paper_ids = []
             for rel in relationships:
-                # Handle both singular and plural forms
                 if "section_id" in rel:
                     section_ids.append(rel["section_id"])
                 elif "section_ids" in rel:
@@ -356,29 +390,18 @@ class GraphRAGPipeline:
         
         state["doc_relationships"] = doc_relationships
         
-        # Add output metadata
-        if run:
-            run.add_metadata({
-                "unique_relationships": len(doc_relationships),
-                "reduction_ratio": len(doc_relationships) / max(len(state["temp_relationships"]), 1)
-            })
+        # Log combined relationships
+        self._log_relationships_detailed(doc_relationships, "COMBINED RELATIONSHIPS")
         
-        logger.info(f"Relationship combination complete: {len(doc_relationships)} unique relationships")
+        logger.info(f"\n✅ COMBINE RELATIONSHIPS COMPLETE: {len(doc_relationships)} unique relationships")
         return state
     
-    @traceable(name="reduce_entities", tags=["reduce", "canonicalization"])
     async def _reduce_entities(self, state: GraphRAGState) -> GraphRAGState:
-        """Reduce phase: Canonicalize entities across documents"""
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "node": "reduce_entities",
-                "document_id": state["document_id"],
-                "entities_before": len(state["doc_entities"]),
-                "canonicalization_strategy": "fuzzy_matching"
-            })
-        
-        logger.info(f"Starting entity reduction for document {state['document_id']}")
+        """Reduce phase: Canonicalize entities across documents with detailed logging"""
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 NODE 5: REDUCE ENTITIES")
+        logger.info(f"{'='*80}")
+        logger.info(f"Canonicalizing {len(state['doc_entities'])} entities...")
         
         try:
             # Convert doc_entities to Entity objects for processing
@@ -400,6 +423,18 @@ class GraphRAGPipeline:
             # Process entity canonicalization
             canonicalization_results = await self.entity_canonicalizer.process_entity_canonicalization(entities)
             
+            logger.info(f"Canonicalization results:")
+            logger.info(f"  - Merge operations: {len(canonicalization_results.get('merge_operations', []))}")
+            logger.info(f"  - Canonical entities: {len(canonicalization_results.get('canonical_entities', []))}")
+            
+            # Log merge operations
+            if canonicalization_results.get("merge_operations"):
+                logger.info(f"\n🔄 ENTITY MERGES:")
+                for i, merge in enumerate(canonicalization_results["merge_operations"], 1):
+                    logger.info(f"  {i}. {merge}")
+            else:
+                logger.info(f"\n🔄 ENTITY MERGES: None")
+            
             # Update state with canonicalization results
             state["entity_merges"] = canonicalization_results.get("merge_operations", [])
             state["final_entities"] = canonicalization_results.get("canonical_entities", [])
@@ -408,15 +443,10 @@ class GraphRAGPipeline:
             if canonicalization_results.get("errors"):
                 state["errors"].extend(canonicalization_results["errors"])
             
-            # Add output metadata
-            if run:
-                run.add_metadata({
-                    "entities_after": len(state["final_entities"]),
-                    "reduction_ratio": len(state["final_entities"]) / max(len(state["doc_entities"]), 1),
-                    "merges_performed": len(state["entity_merges"])
-                })
+            # Log final entities
+            self._log_entities_detailed(state["final_entities"], "REDUCED ENTITIES")
             
-            logger.info(f"Entity reduction complete: {len(state['final_entities'])} final entities, {len(state['entity_merges'])} merges")
+            logger.info(f"\n✅ REDUCE ENTITIES COMPLETE: {len(state['final_entities'])} final entities, {len(state['entity_merges'])} merges")
             return state
             
         except Exception as e:
@@ -427,17 +457,12 @@ class GraphRAGPipeline:
             state["final_entities"] = state["doc_entities"]
             return state
     
-    @traceable(name="reduce_relationships", tags=["reduce", "relationship_deduplication"])
     async def _reduce_relationships(self, state: GraphRAGState) -> GraphRAGState:
         """Reduce phase: Enhanced relationship processing with contradiction detection and resolution"""
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "node": "reduce_relationships",
-                "document_id": state["document_id"],
-                "relationships_before": len(state["doc_relationships"])
-            })
-        logger.info(f"Starting enhanced relationship reduction for document {state['document_id']}")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 NODE 6: REDUCE RELATIONSHIPS")
+        logger.info(f"{'='*80}")
+        logger.info(f"Processing {len(state['doc_relationships'])} relationships for contradictions...")
         
         try:
             # Convert doc_relationships to Relationship objects for processing
@@ -458,8 +483,8 @@ class GraphRAGPipeline:
             # Prepare context information for enhanced analysis
             context_info = {
                 "document_id": state["document_id"],
-                "publication_year": None,  # Could be extracted from document metadata
-                "paper_source": "unknown",  # Could be extracted from document metadata
+                "publication_year": None,
+                "paper_source": "unknown",
                 "section_types": list(set([section.get("type", "unknown") for section in state.get("sections", [])]))
             }
             
@@ -469,6 +494,26 @@ class GraphRAGPipeline:
                 context_info, 
                 self.contradiction_resolver
             )
+            
+            logger.info(f"Contradiction detection results:")
+            logger.info(f"  - Contradictions found: {len(contradiction_results.get('contradictions', []))}")
+            logger.info(f"  - Resolutions applied: {len(contradiction_results.get('resolutions', []))}")
+            
+            # Log contradictions
+            if contradiction_results.get("contradictions"):
+                logger.info(f"\n⚠️ CONTRADICTIONS DETECTED:")
+                for i, contradiction in enumerate(contradiction_results["contradictions"], 1):
+                    logger.info(f"  {i}. {contradiction}")
+            else:
+                logger.info(f"\n⚠️ CONTRADICTIONS: None detected")
+            
+            # Log resolutions
+            if contradiction_results.get("resolutions"):
+                logger.info(f"\n✅ CONTRADICTION RESOLUTIONS:")
+                for i, resolution in enumerate(contradiction_results["resolutions"], 1):
+                    logger.info(f"  {i}. {resolution}")
+            else:
+                logger.info(f"\n✅ CONTRADICTION RESOLUTIONS: None")
             
             # Update state with enhanced contradiction results
             state["contradictions"] = contradiction_results.get("contradictions", [])
@@ -504,15 +549,10 @@ class GraphRAGPipeline:
             
             state["final_relationships"] = final_relationships
             
-            # Add output metadata
-            if run:
-                run.add_metadata({
-                    "relationships_after": len(state["final_relationships"]),
-                    "contradictions_found": len(state["contradictions"]),
-                    "resolutions_applied": len(state["contradiction_resolutions"])
-                })
+            # Log final relationships
+            self._log_relationships_detailed(state["final_relationships"], "REDUCED RELATIONSHIPS")
             
-            logger.info(f"Enhanced relationship reduction complete: {len(state['final_relationships'])} final relationships, "
+            logger.info(f"\n✅ REDUCE RELATIONSHIPS COMPLETE: {len(state['final_relationships'])} final relationships, "
                        f"{len(state['contradictions'])} contradictions, {len(state['contradiction_resolutions'])} resolutions")
             return state
             
@@ -524,18 +564,12 @@ class GraphRAGPipeline:
             state["final_relationships"] = state["doc_relationships"]
             return state
     
-    @traceable(name="consolidate_relationships", tags=["consolidate", "noisy_or"])
     async def _consolidate_relationships(self, state: GraphRAGState) -> GraphRAGState:
         """Consolidate relationships using enhanced consolidation strategies"""
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "node": "consolidate_relationships",
-                "document_id": state["document_id"],
-                "relationships_before": len(state["final_relationships"])
-            })
-        
-        logger.info(f"Starting relationship consolidation for document {state['document_id']}")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 NODE 7: CONSOLIDATE RELATIONSHIPS")
+        logger.info(f"{'='*80}")
+        logger.info(f"Consolidating {len(state['final_relationships'])} relationships...")
         
         try:
             # Convert final_relationships to Relationship objects for processing
@@ -556,6 +590,10 @@ class GraphRAGPipeline:
             # Process relationship consolidation
             consolidation_results = await self.relationship_consolidator.consolidate_relationships(relationships)
             
+            logger.info(f"Consolidation results:")
+            logger.info(f"  - Consolidated relationships: {len(consolidation_results.get('consolidated_relationships', []))}")
+            logger.info(f"  - Summary: {consolidation_results.get('consolidation_summary', {})}")
+            
             # Update state with consolidation results
             state["consolidated_relationships"] = consolidation_results.get("consolidated_relationships", [])
             state["consolidation_summary"] = consolidation_results.get("consolidation_summary", {})
@@ -575,15 +613,10 @@ class GraphRAGPipeline:
                 if consolidated_final_relationships:
                     state["final_relationships"] = consolidated_final_relationships
             
-            # Add output metadata
-            if run:
-                run.add_metadata({
-                    "consolidated_relationships": len(state["consolidated_relationships"]),
-                    "consolidation_summary": state["consolidation_summary"]
-                })
+            # Log final consolidated relationships
+            self._log_relationships_detailed(state["final_relationships"], "CONSOLIDATED RELATIONSHIPS")
             
-            logger.info(f"Relationship consolidation complete: {len(state['consolidated_relationships'])} consolidated relationships, "
-                       f"{state['consolidation_summary']}")
+            logger.info(f"\n✅ CONSOLIDATE RELATIONSHIPS COMPLETE: {len(state['consolidated_relationships'])} consolidated relationships")
             return state
             
         except Exception as e:
@@ -593,19 +626,12 @@ class GraphRAGPipeline:
             # Keep existing final_relationships
             return state
     
-    @traceable(name="update_global_graph", tags=["global", "graph_integration"])
     async def _update_global_graph(self, state: GraphRAGState) -> GraphRAGState:
         """Update global graph with processed results from the pipeline"""
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "node": "update_global_graph",
-                "document_id": state["document_id"],
-                "entities_to_add": len(state["final_entities"]),
-                "relationships_to_add": len(state["final_relationships"])
-            })
-        
-        logger.info(f"Updating global graph with processed results for document {state['document_id']}")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 NODE 8: UPDATE GLOBAL GRAPH")
+        logger.info(f"{'='*80}")
+        logger.info(f"Updating global graph with {len(state['final_entities'])} entities and {len(state['final_relationships'])} relationships...")
         
         try:
             # Convert final entities and relationships to Entity/Relationship objects
@@ -654,6 +680,14 @@ class GraphRAGPipeline:
                 state["document_id"], entities, relationships
             )
             
+            logger.info(f"Global graph processing results:")
+            logger.info(f"  - Entities processed: {global_results.get('entities_processed', 0)}")
+            logger.info(f"  - Relationships processed: {global_results.get('relationships_processed', 0)}")
+            logger.info(f"  - New entities added: {global_results.get('new_entities_added', 0)}")
+            logger.info(f"  - New relationships added: {global_results.get('new_relationships_added', 0)}")
+            logger.info(f"  - Entities updated: {global_results.get('entities_updated', 0)}")
+            logger.info(f"  - Relationships updated: {global_results.get('relationships_updated', 0)}")
+            
             # Update state with global processing results
             state["global_processing_results"] = global_results
             
@@ -661,17 +695,7 @@ class GraphRAGPipeline:
             if global_results.get("errors"):
                 state["errors"].extend(global_results["errors"])
             
-            # Add output metadata
-            if run:
-                run.add_metadata({
-                    "entities_processed": global_results.get('entities_processed', 0),
-                    "relationships_processed": global_results.get('relationships_processed', 0),
-                    "global_processing_results": global_results
-                })
-            
-            logger.info(f"Global graph update complete for document {state['document_id']}: "
-                       f"{global_results.get('entities_processed', 0)} entities, "
-                       f"{global_results.get('relationships_processed', 0)} relationships processed")
+            logger.info(f"\n✅ UPDATE GLOBAL GRAPH COMPLETE")
             
             return state
             
@@ -681,14 +705,9 @@ class GraphRAGPipeline:
             state["errors"].append(error_msg)
             return state
     
-    @traceable(
-        name="graphrag_pipeline_process_document",
-        tags=["pipeline", "document_processing"],
-        metadata={"version": "1.0"}
-    )
     async def process_document(self, document_id: str, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Process a document through the GraphRAG pipeline with global graph integration
+        Process a document through the enhanced GraphRAG pipeline with detailed logging
         
         Args:
             document_id: Document ID
@@ -697,16 +716,11 @@ class GraphRAGPipeline:
         Returns:
             Processing results
         """
-        # Add metadata to run
-        run = get_current_run_tree()
-        if run:
-            run.add_metadata({
-                "document_id": document_id,
-                "num_sections": len(sections),
-                "pipeline_stage": "initialization"
-            })
-        
-        logger.info(f"Starting document processing with global graph integration: {document_id}")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🚀 STARTING ENHANCED GRAPHRAG PIPELINE")
+        logger.info(f"{'='*80}")
+        logger.info(f"Document ID: {document_id}")
+        logger.info(f"Sections to process: {len(sections)}")
         
         # Load global graph state
         try:
@@ -751,6 +765,10 @@ class GraphRAGPipeline:
         try:
             result = await self.graph.ainvoke(initial_state)
             
+            logger.info(f"\n{'='*80}")
+            logger.info(f"🎉 PIPELINE COMPLETED SUCCESSFULLY!")
+            logger.info(f"{'='*80}")
+            
             return {
                 "success": True,
                 "document_id": document_id,
@@ -779,3 +797,4 @@ class GraphRAGPipeline:
                 "final_entities": [],
                 "final_relationships": []
             }
+

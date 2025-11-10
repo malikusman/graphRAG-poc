@@ -5,12 +5,14 @@ Main FastAPI application entry point
 
 import logging
 import sys
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.database.models import initialize_database
 from app.api import documents, queries
-from app.api.endpoints import api_integration
+from app.api.endpoints import api_integration, embeddings, notes
+from app.core.config import settings
 
 # Configure logging
 logging.basicConfig(
@@ -48,6 +50,8 @@ app.add_middleware(
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(queries.router, prefix="/api/v1/queries", tags=["queries"])
 app.include_router(api_integration.router, prefix="/api/v1", tags=["API Integration"])
+app.include_router(embeddings.router, prefix="/api/v1", tags=["Embeddings"])
+app.include_router(notes.router, prefix="/api/v1", tags=["Notes"])
 
 
 @app.get("/")
@@ -69,7 +73,16 @@ async def health_check():
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup"""
+    """Initialize services on startup"""
+    # Configure LangSmith tracing
+    if settings.LANGCHAIN_TRACING_V2 and settings.LANGCHAIN_API_KEY:
+        os.environ["LANGCHAIN_TRACING_V2"] = str(settings.LANGCHAIN_TRACING_V2).lower()
+        os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
+        os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
+        os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGCHAIN_ENDPOINT
+        logging.info(f"LangSmith tracing enabled for project: {settings.LANGCHAIN_PROJECT}")
+    
+    # Initialize database
     await connect_to_mongo()
     await initialize_database()
 

@@ -297,3 +297,10 @@ temp/
 *.pdf
 *.docx
 *.doc
+
+# Google Cloud service account keys
+*-*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!*.config.json
