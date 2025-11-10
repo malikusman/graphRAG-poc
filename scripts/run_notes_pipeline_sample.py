@@ -84,33 +84,31 @@ def summarize_cleaning(discarded: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 def summarize_entities(entities: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not entities:
-        return {"count": 0}
+        return {"count": 0, "entity_names": []}
     types = Counter(e.get("entity_type", "unknown") for e in entities)
-    sample = [e.get("entity_name") for e in entities[:5]]
     return {
         "count": len(entities),
         "top_types": types.most_common(5),
-        "sample_entities": sample,
+        "entity_names": [e.get("entity_name") for e in entities],
     }
 
 
 def summarize_relationships(relationships: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not relationships:
-        return {"count": 0}
+        return {"count": 0, "relationships": []}
     types = Counter(r.get("relationship_type", "unknown") for r in relationships)
-    sample = [
-        {
-            "source": r.get("source_entity"),
-            "type": r.get("relationship_type"),
-            "target": r.get("target_entity"),
-            "strength": r.get("relationship_strength"),
-        }
-        for r in relationships[:5]
-    ]
     return {
         "count": len(relationships),
         "top_types": types.most_common(5),
-        "sample_relationships": sample,
+        "relationships": [
+            {
+                "source": r.get("source_entity"),
+                "type": r.get("relationship_type"),
+                "target": r.get("target_entity"),
+                "strength": r.get("relationship_strength"),
+            }
+            for r in relationships
+        ],
     }
 
 
@@ -232,6 +230,18 @@ async def main() -> None:
 
     entries = fetch_result["entries"]
     selected_entries = entries[: args.limit]
+
+    selection_path = "notes_pipeline_selected_entries.json"
+    with open(selection_path, "w") as f:
+        json.dump(
+            {
+                "selection_size": len(selected_entries),
+                "selected_entries": selected_entries,
+            },
+            f,
+            indent=2,
+        )
+    logger.info("Saved selected entries to %s", selection_path)
 
     grouped = defaultdict(list)
     for item in selected_entries:
